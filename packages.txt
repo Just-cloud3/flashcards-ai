@@ -1,8 +1,0 @@
-#!/bin/bash
-# Streamlit Cloud pre-deployment script
-# Install Tesseract OCR for image text extraction
-
-apt-get update
-apt-get install -y tesseract-ocr
-apt-get install -y tesseract-ocr-lit  # Lithuanian language pack
-apt-get install -y tesseract-ocr-eng  # English language pack
