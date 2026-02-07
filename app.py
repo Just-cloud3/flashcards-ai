@@ -30,9 +30,12 @@ load_dotenv()
 GEMINI_MODEL = "gemini-2.0-flash"
 DAILY_LIMIT = 20
 SR_INTERVALS = {1: 1, 2: 1, 3: 3, 4: 7, 5: 14}  # difficulty -> days
-MAX_PDF_CHARS = 10000
-MAX_INPUT_CHARS = 50000
-MAX_TRANSCRIPT_CHARS = 30000
+
+# Character limits
+MAX_PDF_CHARS = 50000        # Free: ~20 psl.
+MAX_INPUT_CHARS = 50000      # Free: ~20 psl.
+MAX_TRANSCRIPT_CHARS = 50000 # Free: ~20 min video
+MAX_PREMIUM_CHARS = 200000   # Premium: visa knyga
 
 # Page config
 st.set_page_config(
