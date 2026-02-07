@@ -207,40 +207,52 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
         transcript = None
         detected_lang = None
 
+        # 1. Try preferred languages
         for lang in languages:
             try:
                 transcript = transcript_list.find_transcript([lang])
                 detected_lang = lang
                 break
-            except NoTranscriptFound:
+            except Exception:
                 continue
 
+        # 2. Try generated English as fallback
         if not transcript:
             try:
                 transcript = transcript_list.find_generated_transcript(['en'])
                 detected_lang = 'en (auto)'
-            except NoTranscriptFound:
-                # Fallback: iterate available transcripts
-                try:
-                    for t in transcript_list:
-                        transcript = t
-                        detected_lang = t.language_code
-                        break
-                except StopIteration:
-                    pass
+            except Exception:
+                pass
+
+        # 3. Final fallback: just take the first available transcript
+        if not transcript:
+            try:
+                # Iterate through all available transcripts
+                for t in transcript_list:
+                    transcript = t
+                    detected_lang = t.language_code
+                    break
+            except Exception:
+                pass
 
         if not transcript:
-            return {'success': False, 'error': 'Šiam video nėra subtitrų'}
+            return {'success': False, 'error': 'Šiam video nėra jokių subtitrų (nei rankinių, nei automatinių)'}
 
         transcript_data = transcript.fetch()
 
         if not transcript_data:
             return {'success': False, 'error': 'Transkripcija tuščia'}
 
-        full_text = " ".join([seg['text'] for seg in transcript_data])
-        duration = transcript_data[-1]['start'] + transcript_data[-1]['duration']
+        full_text = " ".join([seg.get('text', '') for seg in transcript_data])
+        
+        # Calculate duration safely
+        if transcript_data:
+            last_seg = transcript_data[-1]
+            duration = last_seg.get('start', 0) + last_seg.get('duration', 0)
+        else:
+            duration = 0
 
-        # Limit transcript length (like PDF)
+        # Limit transcript length
         if len(full_text) > MAX_TRANSCRIPT_CHARS:
             full_text = full_text[:MAX_TRANSCRIPT_CHARS]
 
@@ -254,9 +266,10 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
     except TranscriptsDisabled:
         return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
     except NoTranscriptFound:
-        return {'success': False, 'error': 'Nerasta subtitrų'}
+        return {'success': False, 'error': 'Nerasta tinkamų subtitrų'}
     except Exception as e:
-        return {'success': False, 'error': f'Klaida gaunant subtitrus: {type(e).__name__}'}
+        # Return the actual error message for better debugging
+        return {'success': False, 'error': f'YouTube klaida: {str(e)}'}
 
 def format_duration(seconds):
     """Convert seconds to MM:SS format"""
