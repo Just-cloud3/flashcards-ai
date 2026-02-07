@@ -13,6 +13,17 @@ from dotenv import load_dotenv
 from PIL import Image
 from io import BytesIO
 
+# Supabase integration
+try:
+    from supabase_client import (
+        sign_in_with_email, sign_up_with_email, sign_out,
+        save_flashcard_set, load_user_flashcards, update_card_progress,
+        get_cards_for_review
+    )
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+
 # YouTube transcript support
 try:
     from youtube_transcript_api import YouTubeTranscriptApi
@@ -147,6 +158,10 @@ if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 if 'chat_card_context' not in st.session_state:
     st.session_state.chat_card_context = None
+if 'user' not in st.session_state:
+    st.session_state.user = None
+if 'auth_mode' not in st.session_state:
+    st.session_state.auth_mode = 'login'
 
 # ==========================
 # GEMINI API SETUP
@@ -258,6 +273,31 @@ def calculate_next_review(difficulty):
     interval_days = SR_INTERVALS.get(difficulty, 3)
     return (datetime.now() + timedelta(days=interval_days)).isoformat()
 
+def sync_flashcards_from_supabase(user_id):
+    """Sync data from Supabase to local session state"""
+    result = load_user_flashcards(user_id)
+    if result['success']:
+        # Update flashcards list
+        st.session_state.flashcards = result['cards']
+        
+        # Update study_cards for Leitner system
+        new_study_cards = {}
+        for card in result['cards']:
+            # Use database ID as key
+            card_id = card.get('id')
+            if card_id:
+                new_study_cards[card_id] = {
+                    "id": card_id,
+                    "question": card.get("klausimas", ""),
+                    "answer": card.get("atsakymas", ""),
+                    "next_review": card.get("next_review", datetime.now().isoformat()),
+                    "difficulty": card.get("difficulty", 3),
+                    "times_reviewed": card.get("times_reviewed", 0)
+                }
+        st.session_state.study_cards = new_study_cards
+        return True
+    return False
+
 def add_cards_to_study(flashcards):
     """Add generated flashcards to study deck with SR metadata"""
     for i, card in enumerate(flashcards):
@@ -287,6 +327,10 @@ def update_card_difficulty(card_id, difficulty):
         card["difficulty"] = difficulty
         card["times_reviewed"] = card.get("times_reviewed", 0) + 1
         card["next_review"] = calculate_next_review(difficulty)
+        
+        # Sync with Supabase if logged in
+        if st.session_state.user and SUPABASE_AVAILABLE:
+            update_card_progress(card_id, difficulty)
 
 # ==========================
 # FLASHCARD GENERATION
@@ -381,6 +425,11 @@ GRAŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
 def save_generated_cards(cards):
     """Save generated cards to session state and trigger success"""
     if cards:
+        # Save to Supabase if logged in
+        if st.session_state.user and SUPABASE_AVAILABLE:
+            with st.spinner("Sinchronizuojama su paskyra..."):
+                save_flashcard_set(st.session_state.user['id'], "Naujas rinkinys", cards)
+        
         st.session_state.flashcards = cards
         st.session_state.flashcards_count += len(cards)
         st.session_state.current_card = 0
@@ -474,6 +523,74 @@ with st.sidebar:
     if theme == "🌙 Tamsi":
         st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
 
+    st.divider()
+    
+    # ==================
+    # AUTHENTICATION UI
+    # ==================
+    if SUPABASE_AVAILABLE:
+        st.header("👤 Paskyra")
+        
+        if st.session_state.user:
+            # User is logged in
+            st.success(f"✅ {st.session_state.user['email']}")
+            st.caption("Kortelės sinchronizuojamos!")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 Sync", use_container_width=True):
+                    if sync_flashcards_from_supabase(st.session_state.user['id']):
+                        st.success("Sinchronizuota!")
+                        st.rerun()
+                    else:
+                        st.error("Nepavyko sinchronizuoti")
+            with col2:
+                if st.button("🚪 Atsijungti", use_container_width=True):
+                    sign_out()
+                    st.session_state.user = None
+                    st.session_state.flashcards = []
+                    st.session_state.study_cards = {}
+                    st.rerun()
+        else:
+            # Login/Signup forms
+            auth_tab = st.radio("", ["Prisijungti", "Registruotis"], horizontal=True, label_visibility="collapsed")
+            
+            email = st.text_input("El. paštas", key="auth_email", placeholder="studentas@email.com")
+            password = st.text_input("Slaptažodis", type="password", key="auth_pass", placeholder="••••••••")
+            
+            if auth_tab == "Prisijungti":
+                if st.button("🔐 Prisijungti", use_container_width=True):
+                    if email and password:
+                        result = sign_in_with_email(email, password)
+                        if result['success']:
+                            st.session_state.user = {
+                                'id': str(result['user'].id),
+                                'email': result['user'].email
+                            }
+                            # Load user's flashcards and study history
+                            sync_flashcards_from_supabase(st.session_state.user['id'])
+                            st.success("Prisijungta! ✅")
+                            st.rerun()
+                        else:
+                            st.error("Neteisingi duomenys")
+                    else:
+                        st.warning("Įveskite el. paštą ir slaptažodį")
+            else:
+                if st.button("📝 Registruotis", use_container_width=True):
+                    if email and password:
+                        if len(password) < 6:
+                            st.warning("Slaptažodis per trumpas (min 6 simboliai)")
+                        else:
+                            result = sign_up_with_email(email, password)
+                            if result['success']:
+                                st.success("Registracija sėkminga! Patikrinkite el. paštą.")
+                            else:
+                                st.error(f"Klaida: {result.get('error', 'Nežinoma')}")
+                    else:
+                        st.warning("Įveskite el. paštą ir slaptažodį")
+            
+            st.caption("💡 Prisijungę galėsite sinchronizuoti korteles tarp įrenginių")
+    
     st.divider()
     st.header("Nustatymai")
 
