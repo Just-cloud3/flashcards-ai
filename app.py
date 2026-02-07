@@ -5,9 +5,21 @@ import PyPDF2
 import json
 import csv
 from io import StringIO
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import re
 from dotenv import load_dotenv
+from PIL import Image
+import base64
+from io import BytesIO
+
+# YouTube transcript support
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+    YOUTUBE_AVAILABLE = True
+except ImportError:
+    YOUTUBE_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -75,9 +87,18 @@ if 'current_card' not in st.session_state:
     st.session_state.current_card = 0
 if 'is_premium' not in st.session_state:
     st.session_state.is_premium = False
+if 'study_cards' not in st.session_state:
+    st.session_state.study_cards = {}  # {card_id: {question, answer, next_review, difficulty, times_reviewed}}
+if 'show_answer' not in st.session_state:
+    st.session_state.show_answer = False
+if 'study_difficulty' not in st.session_state:
+    st.session_state.study_difficulty = 3
 
 # Daily limit
 DAILY_LIMIT = 20
+
+# Spaced Repetition Intervals (Leitner System)
+SR_INTERVALS = {1: 1, 2: 1, 3: 3, 4: 7, 5: 14}  # difficulty -> days
 MAX_PDF_CHARS = 10000
 
 # ==========================
@@ -89,8 +110,105 @@ def get_gemini_client(api_key):
     return genai.Client(api_key=api_key)
 
 # ==========================
-# FLASHCARD GENERATION
+# YOUTUBE FUNCTIONS
 # ==========================
+
+def extract_video_id(youtube_url):
+    """Extract video ID from various YouTube URL formats"""
+    patterns = [
+        r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
+        r'(?:embed\/)([0-9A-Za-z_-]{11})',
+        r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, youtube_url)
+        if match:
+            return match.group(1)
+    return None
+
+def get_youtube_transcript(video_id, languages=['lt', 'en']):
+    """Fetch transcript from YouTube video"""
+    if not YOUTUBE_AVAILABLE:
+        return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
+    
+    try:
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript = None
+        detected_lang = None
+        
+        for lang in languages:
+            try:
+                transcript = transcript_list.find_transcript([lang])
+                detected_lang = lang
+                break
+            except:
+                continue
+        
+        if not transcript:
+            try:
+                transcript = transcript_list.find_generated_transcript(['en'])
+                detected_lang = 'en (auto)'
+            except:
+                available = transcript_list._manually_created_transcripts
+                if available:
+                    transcript = list(available.values())[0]
+                    detected_lang = transcript.language_code
+        
+        if not transcript:
+            return {'success': False, 'error': 'Šiam video nėra subtrirų'}
+        
+        transcript_data = transcript.fetch()
+        full_text = " ".join([seg['text'] for seg in transcript_data])
+        duration = transcript_data[-1]['start'] + transcript_data[-1]['duration']
+        
+        return {
+            'success': True,
+            'text': full_text,
+            'language': detected_lang,
+            'duration': duration,
+            'segments': len(transcript_data)
+        }
+    except TranscriptsDisabled:
+        return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
+    except NoTranscriptFound:
+        return {'success': False, 'error': 'Nerasta subtrirų'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def format_duration(seconds):
+    """Convert seconds to MM:SS format"""
+    mins = int(seconds // 60)
+    secs = int(seconds % 60)
+    return f"{mins}:{secs:02d}"
+# SPACED REPETITION
+# ==========================
+
+def calculate_next_review(difficulty):
+    """Calculate next review date based on difficulty (1-5)"""
+    interval_days = SR_INTERVALS.get(difficulty, 3)
+    return (datetime.now() + timedelta(days=interval_days)).isoformat()
+
+def add_cards_to_study(flashcards):
+    """Add generated flashcards to study deck with SR metadata"""
+    for i, card in enumerate(flashcards):
+        card_id = f"card_{datetime.now().timestamp()}_{i}"
+        if card_id not in st.session_state.study_cards:
+            st.session_state.study_cards[card_id] = {
+                "id": card_id,
+                "question": card.get("klausimas", ""),
+                "answer": card.get("atsakymas", ""),
+                "next_review": datetime.now().isoformat(),
+                "difficulty": 3,
+                "times_reviewed": 0
+            }
+
+def get_today_cards():
+    """Get cards that need review today"""
+    today = datetime.now().date()
+    return [
+        (card_id, card) for card_id, card in st.session_state.study_cards.items()
+        if datetime.fromisoformat(card["next_review"]).date() <= today
+    ]
 
 def generate_flashcards_from_text(text, num_cards=10, language="lietuvių", api_key=None):
     """Generate flashcards using Gemini 2.0 Flash"""
@@ -270,111 +388,328 @@ with st.sidebar:
     st.divider()
     st.caption("Made with ❤️ for LT students")
     st.caption("Powered by Gemini 2.0 Flash ⚡")
+    
+    # Info ir Privatumas
+    with st.expander("ℹ️ Apie ir Privatumas"):
+        st.caption("""
+        **FlashCards AI v1.0**
+        
+        Šis įrankis naudoja dirbtįnį intelektą medžiagai analizuoti. 
+        
+        **Privatumas:**
+        Jūsų įkelti failai ir tekstai nėra saugomi mūsų serveriuose. 
+        Jie siunčiami tik į Google Gemini API apdorojimui ir po to iškart ištrinami.
+        """)
+    
+    st.markdown("---")
+    st.markdown("Turite idėjų? [Susisiekite](mailto:petrovic222@gmail.com)")
 
-# Main tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Tekstas", "📄 PDF", "🎴 Peržiūra", "💾 Eksportas"])
+# Main tabs - 4 švari struktūra
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Šaltinis", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Eksportas"])
 
 # ==================
-# TAB 1: TEXT INPUT
+# TAB 1: ŠALTINIS (Tekstas + PDF + YouTube vienoje vietoje)
 # ==================
 with tab1:
-    st.header("Sukurk flashcard'us iš teksto")
+    st.header("Iš ko mokysimės šiandien?")
     
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        input_text = st.text_area(
-            "Įklijuokite tekstą:",
-            height=300,
-            placeholder="Kopijuokite paskaitų konspektą, vadovėlio skyrių ar savo užrašus..."
-        )
-    
-    with col2:
-        num_cards = st.slider("Kortelių skaičius:", 5, 20, 10)
-        language = st.selectbox("Kalba:", ["lietuvių", "anglų", "abi"])
-        
-        can_generate = (
-            st.session_state.flashcards_count < DAILY_LIMIT or 
-            st.session_state.is_premium
-        )
-        
-        if st.button("🎯 Generuoti", type="primary", disabled=not input_text or not can_generate):
-            if not api_key:
-                st.error("❌ Įveskite Gemini API key!")
-            else:
-                with st.spinner("Kuriami flashcard'ai... ⏳"):
-                    cards = generate_flashcards_from_text(input_text, num_cards, language, api_key)
-                    if cards:
-                        st.session_state.flashcards = cards
-                        st.session_state.flashcards_count += len(cards)
-                        st.session_state.current_card = 0
-                        st.balloons()
-                        st.success(f"✅ Sukurta {len(cards)} flashcard'ų!")
-                        st.rerun()
-
-# ==================
-# TAB 2: PDF UPLOAD
-# ==================
-with tab2:
-    st.header("Sukurk flashcard'us iš PDF")
-    
-    uploaded_pdf = st.file_uploader(
-        "Įkelkite PDF failą:",
-        type=["pdf"],
-        help="Veikia su tekstiniais PDF (ne skanuotomis nuotraukomis)"
+    source_type = st.radio(
+        "Pasirinkite medžiagos tipą:",
+        ["✍️ Tekstas", "📄 PDF Failas", "🎥 YouTube Video", "📸 Nuotrauka"],
+        horizontal=True,
+        label_visibility="collapsed"
     )
     
-    if uploaded_pdf:
+    st.divider()
+    
+    can_generate = st.session_state.flashcards_count < DAILY_LIMIT or st.session_state.is_premium
+    
+    # ----------------------
+    # TEKSTAS
+    # ----------------------
+    if source_type == "✍️ Tekstas":
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            with st.spinner("Ekstraktuojamas tekstas..."):
-                pdf_text = extract_text_from_pdf(uploaded_pdf)
-            
-            if pdf_text:
-                st.text_area("Ekstraktuotas tekstas:", pdf_text[:1000] + "...", height=200)
-                st.caption(f"Viso simbolių: {len(pdf_text):,}")
+            input_text = st.text_area(
+                "Įklijuokite tekstą:",
+                height=300,
+                placeholder="Kopijuokite paskaitų konspektą, vadovėlio skyrių ar savo užrašus..."
+            )
         
         with col2:
-            num_cards_pdf = st.slider("Kortelių skaičius:", 5, 20, 10, key="pdf_slider")
+            num_cards = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_text")
+            language = st.selectbox("Kalba:", ["lietuvių", "anglų", "abi"])
             
-            can_generate = (
-                st.session_state.flashcards_count < DAILY_LIMIT or 
-                st.session_state.is_premium
-            )
-            
-            if st.button("🎯 Generuoti iš PDF", type="primary", disabled=not pdf_text or not can_generate):
+            if st.button("🎯 Generuoti", type="primary", disabled=not input_text or not can_generate):
                 if not api_key:
                     st.error("❌ Įveskite Gemini API key!")
                 else:
-                    with st.spinner("Kuriami flashcard'ai iš PDF... ⏳"):
-                        cards = generate_flashcards_from_text(pdf_text, num_cards_pdf, "lietuvių", api_key)
+                    with st.spinner("Kuriami flashcard'ai... ⏳"):
+                        cards = generate_flashcards_from_text(input_text, num_cards, language, api_key)
                         if cards:
                             st.session_state.flashcards = cards
                             st.session_state.flashcards_count += len(cards)
                             st.session_state.current_card = 0
+                            add_cards_to_study(cards)
                             st.balloons()
                             st.success(f"✅ Sukurta {len(cards)} flashcard'ų!")
                             st.rerun()
+    
+    # ----------------------
+    # PDF
+    # ----------------------
+    elif source_type == "📄 PDF Failas":
+        uploaded_pdf = st.file_uploader(
+            "Įkelkite PDF failą:",
+            type=["pdf"],
+            help="Veikia su tekstiniais PDF (ne skanuotomis nuotraukomis)"
+        )
+        
+        if uploaded_pdf:
+            with st.spinner("Skaitomas PDF..."):
+                pdf_text = extract_text_from_pdf(uploaded_pdf)
+            
+            if pdf_text:
+                st.info(f"📄 Nuskaityta {len(pdf_text):,} simbolių")
+                st.text_area("Peržiūra:", pdf_text[:500] + "...", height=150)
+                
+                num_cards_pdf = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_pdf")
+                
+                if st.button("🎯 Generuoti iš PDF", type="primary", disabled=not can_generate):
+                    if not api_key:
+                        st.error("❌ Įveskite Gemini API key!")
+                    else:
+                        with st.spinner("Kuriami flashcard'ai iš PDF... ⏳"):
+                            cards = generate_flashcards_from_text(pdf_text, num_cards_pdf, "lietuvių", api_key)
+                            if cards:
+                                st.session_state.flashcards = cards
+                                st.session_state.flashcards_count += len(cards)
+                                st.session_state.current_card = 0
+                                add_cards_to_study(cards)
+                                st.balloons()
+                                st.success(f"✅ Sukurta {len(cards)} flashcard'ų!")
+                                st.rerun()
+    
+    # ----------------------
+    # YOUTUBE
+    # ----------------------
+    elif source_type == "🎥 YouTube Video":
+        if not YOUTUBE_AVAILABLE:
+            st.warning("⚠️ YouTube funkcija neaktyvi. Įdiekite: `pip install youtube-transcript-api`")
+        else:
+            youtube_url = st.text_input(
+                "YouTube nuoroda:",
+                placeholder="https://www.youtube.com/watch?v=..."
+            )
+            
+            if youtube_url:
+                video_id = extract_video_id(youtube_url)
+                
+                if not video_id:
+                    st.error("❌ Neteisinga YouTube nuoroda")
+                else:
+                    # Thumbnail
+                    st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", width=400)
+                    
+                    if st.button("🎬 Ekstraktuoti tekstą", type="primary"):
+                        with st.spinner("Gaunami subtitrai..."):
+                            result = get_youtube_transcript(video_id)
+                        
+                        if result['success']:
+                            st.session_state.youtube_transcript = result['text']
+                            st.success(f"✅ Ekstraktuota! Kalba: {result['language']}, Trukmė: {format_duration(result['duration'])}")
+                        else:
+                            st.error(f"❌ {result['error']}")
+            
+            if 'youtube_transcript' in st.session_state:
+                st.divider()
+                st.text_area("Peržiūra:", st.session_state.youtube_transcript[:500] + "...", height=100)
+                
+                num_cards_yt = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_yt")
+                
+                if st.button("🎯 Generuoti iš YouTube", type="primary", disabled=not can_generate):
+                    if not api_key:
+                        st.error("❌ Įveskite Gemini API key!")
+                    else:
+                        with st.spinner("Kuriami flashcard'ai..."):
+                            cards = generate_flashcards_from_text(st.session_state.youtube_transcript, num_cards_yt, "lietuvių", api_key)
+                            if cards:
+                                st.session_state.flashcards = cards
+                                st.session_state.flashcards_count += len(cards)
+                                st.session_state.current_card = 0
+                                add_cards_to_study(cards)
+                                st.balloons()
+                                st.success(f"✅ Sukurta {len(cards)} flashcard'ų!")
+                                st.rerun()
+    
+    # ----------------------
+    # NUOTRAUKA (Gemini Vision)
+    # ----------------------
+    elif source_type == "📸 Nuotrauka":
+        st.info("📷 Nufotografuokite užrašus, lentą ar skaidrę ir įkelkite nuotrauką!")
+        
+        uploaded_image = st.file_uploader(
+            "Įkelkite nuotrauką:",
+            type=["jpg", "jpeg", "png", "webp"],
+            help="Palaikomi formatai: JPG, PNG, WEBP"
+        )
+        
+        if uploaded_image:
+            image = Image.open(uploaded_image)
+            st.image(image, caption="Jūsų nuotrauka", width=400)
+            
+            num_cards_img = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_img")
+            
+            if st.button("🎯 Generuoti iš nuotraukos", type="primary", disabled=not can_generate):
+                if not api_key:
+                    st.error("❌ Įveskite Gemini API key!")
+                else:
+                    with st.spinner("Gemini analizuoja nuotrauką... 📸"):
+                        try:
+                            client = get_gemini_client(api_key)
+                            
+                            # Convert image to bytes
+                            img_buffer = BytesIO()
+                            image.save(img_buffer, format='PNG')
+                            img_bytes = img_buffer.getvalue()
+                            
+                            prompt = f"""Tu esi ekspertas akademinis asistentas.
+
+Išanalizuok šią nuotrauką (tai gali būti užrašai, lenta, skaidrė ar vadovėlis).
+Sukurk {num_cards_img} flashcard'ų lietuvių kalba.
+
+GRAŽINK TIK JSON ARRAY formatu:
+[
+  {{"klausimas": "...", "atsakymas": "..."}}
+]"""
+                            
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=[
+                                    prompt,
+                                    {"mime_type": "image/png", "data": img_bytes}
+                                ]
+                            )
+                            
+                            content = response.text
+                            if "```json" in content:
+                                content = content.split("```json")[1].split("```")[0]
+                            elif "```" in content:
+                                content = content.split("```")[1].split("```")[0]
+                            
+                            cards = json.loads(content.strip())
+                            
+                            if cards:
+                                st.session_state.flashcards = cards
+                                st.session_state.flashcards_count += len(cards)
+                                st.session_state.current_card = 0
+                                add_cards_to_study(cards)
+                                st.balloons()
+                                st.success(f"✅ Sukurta {len(cards)} flashcard'ų iš nuotraukos!")
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"Klaida: {str(e)}")
 
 # ==================
-# TAB 3: FLASHCARD VIEWER
+# TAB 2: MOKYMASIS (Spaced Repetition)
+# ==================
+with tab2:
+    st.header("🧠 Mokymasis (Spaced Repetition)")
+    st.markdown("**Leitner sistema** - išmok efektyviau prisimenant tinkamu laiku!")
+    
+    today_cards = get_today_cards()
+    total_study_cards = len(st.session_state.study_cards)
+    
+    col_stat1, col_stat2, col_stat3 = st.columns(3)
+    with col_stat1:
+        st.metric("📚 Visos kortelės", total_study_cards)
+    with col_stat2:
+        st.metric("📅 Šiandien kartoti", len(today_cards))
+    with col_stat3:
+        mastered = sum(1 for c in st.session_state.study_cards.values() if c.get('difficulty', 3) >= 4)
+        st.metric("✅ Įsisavintos", mastered)
+    
+    st.divider()
+    
+    if not st.session_state.study_cards:
+        st.info("👈 Pirmiausia sukurkite flashcard'us Tekstas arba PDF tab'uose!")
+        
+        st.subheader("Kaip veikia Spaced Repetition?")
+        st.markdown("""
+        1. **Sukurkite kortelę** - ji patenka į 1 dėžutę
+        2. **Atsakykite teisingai** - kortelė pereina į kitą dėžutę (kartojimo intervalas ilgėja)
+        3. **Atsakykite neteisingai** - kortelė grįžta į 1 dėžutę
+        4. **5 dėžutė** = įsisavinta! (kartojama kas 14 dienų)
+        """)
+    elif not today_cards:
+        st.success("🎉 Šiandien viskas pakartota! Grįžkite rytoj.")
+        
+        st.subheader("📊 Jūsų progresas")
+        for card_id, card_data in list(st.session_state.study_cards.items())[:5]:
+            difficulty = card_data.get('difficulty', 3)
+            next_review = card_data.get('next_review', datetime.now())
+            st.markdown(f"**{card_data['question'][:50]}...** - Dėžutė {difficulty}/5")
+    else:
+        current_study = today_cards[0]
+        card_id = current_study['id']
+        card_data = st.session_state.study_cards[card_id]
+        
+        st.subheader(f"Kortelė {1}/{len(today_cards)}")
+        
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; color: white; margin: 20px 0;">
+            <h3>❓ {card_data['question']}</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("👁️ Rodyti atsakymą", type="primary"):
+            st.session_state.show_answer = True
+        
+        if st.session_state.show_answer:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #11998e, #38ef7d); padding: 30px; border-radius: 15px; color: white; margin: 20px 0;">
+                <h3>✅ {card_data['answer']}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("### Kaip sekėsi?")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("😰 Sunku", use_container_width=True):
+                    update_card_difficulty(card_id, 1)
+                    st.session_state.show_answer = False
+                    st.rerun()
+            
+            with col2:
+                if st.button("🤔 Vidutiniškai", use_container_width=True):
+                    update_card_difficulty(card_id, 3)
+                    st.session_state.show_answer = False
+                    st.rerun()
+            
+            with col3:
+                if st.button("😎 Lengva", use_container_width=True):
+                    update_card_difficulty(card_id, 5)
+                    st.session_state.show_answer = False
+                    st.rerun()
+
+# ==================
+# TAB 3: PERŽIŪRA (Kortelių sąrašas)
 # ==================
 with tab3:
     st.header("🎴 Peržiūrėk flashcard'us")
     
     if not st.session_state.flashcards:
-        st.info("👈 Pirmiausia sukurkite flashcard'us kitose kortelėse!")
+        st.info("👈 Pirmiausia sukurkite flashcard'us Šaltinis tab'e!")
     else:
         cards = st.session_state.flashcards
         total = len(cards)
         current = st.session_state.current_card
         
-        # Progress
         st.progress((current + 1) / total)
         st.caption(f"Kortelė {current + 1} iš {total}")
         
-        # Flip card
         card = cards[current]
         st.markdown(f"""
         <div class="flip-card">
@@ -391,7 +726,6 @@ with tab3:
         
         st.caption("💡 Desktop: užvesk pelę | Mobile: bakstelk kortelę")
         
-        # Navigation
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col1:
@@ -404,7 +738,6 @@ with tab3:
                 st.session_state.current_card += 1
                 st.rerun()
         
-        # Editable cards
         st.divider()
         st.subheader("✏️ Redaguoti korteles")
         
@@ -418,7 +751,7 @@ with tab3:
                     st.success("Išsaugota!")
 
 # ==================
-# TAB 4: EXPORT
+# TAB 4: EKSPORTAS
 # ==================
 with tab4:
     st.header("💾 Eksportuoti flashcard'us")
@@ -460,9 +793,35 @@ with tab4:
                 mime="text/plain"
             )
         
-        # Preview
+        st.divider()
+        st.subheader("🖨️ Spausdinimui")
+        
+        html_table = """
+        <style>
+            @media print { .page-break { page-break-after: always; } }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            td, th { border: 1px solid #333; padding: 15px; }
+            th { background-color: #667eea; color: white; }
+        </style>
+        <h2>📚 Mano Kortelės</h2>
+        <table>
+            <tr><th>Klausimas</th><th>Atsakymas</th></tr>
+        """
+        for c in st.session_state.flashcards:
+            html_table += f"<tr><td>{c['klausimas']}</td><td>{c['atsakymas']}</td></tr>"
+        html_table += "</table>"
+        
+        st.download_button(
+            "⬇️ Atsisiųsti HTML (Spausdinimui)",
+            html_table,
+            "korteles_print.html",
+            "text/html"
+        )
+        st.caption("Atsisiuntę failą, atidarykite jį naršyklėje ir spauskite CTRL+P")
+        
         st.divider()
         st.subheader("👀 Peržiūra")
         for i, card in enumerate(st.session_state.flashcards, 1):
             st.markdown(f"**{i}. {card['klausimas']}**")
             st.caption(f"↳ {card['atsakymas']}")
+
