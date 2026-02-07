@@ -261,7 +261,7 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
                     detected_lang = transcript.language_code
         
         if not transcript:
-            return {'success': False, 'error': 'Šiam video nėra subtrirų'}
+            return {'success': False, 'error': 'Šiam video nėra subtitrų'}
         
         transcript_data = transcript.fetch()
         full_text = " ".join([seg['text'] for seg in transcript_data])
@@ -277,7 +277,7 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
     except TranscriptsDisabled:
         return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
     except NoTranscriptFound:
-        return {'success': False, 'error': 'Nerasta subtrirų'}
+        return {'success': False, 'error': 'Nerasta subtitrų'}
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
@@ -312,9 +312,17 @@ def get_today_cards():
     """Get cards that need review today"""
     today = datetime.now().date()
     return [
-        (card_id, card) for card_id, card in st.session_state.study_cards.items()
+        card for card in st.session_state.study_cards.values()
         if datetime.fromisoformat(card["next_review"]).date() <= today
     ]
+
+def update_card_difficulty(card_id, difficulty):
+    """Update card difficulty and schedule next review"""
+    if card_id in st.session_state.study_cards:
+        card = st.session_state.study_cards[card_id]
+        card["difficulty"] = difficulty
+        card["times_reviewed"] = card.get("times_reviewed", 0) + 1
+        card["next_review"] = calculate_next_review(difficulty)
 
 def generate_flashcards_from_text(text, num_cards=10, language="lietuvių", api_key=None):
     """Generate flashcards using Gemini 2.0 Flash"""
@@ -360,9 +368,7 @@ GRAŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
         )
         content = response.text
         
-        # Parse JSON
-        import re
-        # Išvalyti markdown code blocks
+        # Parse JSON - išvalyti markdown code blocks
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:
@@ -767,9 +773,8 @@ with tab2:
             next_review = card_data.get('next_review', datetime.now())
             st.markdown(f"**{card_data['question'][:50]}...** - Dėžutė {difficulty}/5")
     else:
-        current_study = today_cards[0]
-        card_id = current_study['id']
-        card_data = st.session_state.study_cards[card_id]
+        card_data = today_cards[0]
+        card_id = card_data['id']
         
         st.subheader(f"Kortelė {1}/{len(today_cards)}")
         
