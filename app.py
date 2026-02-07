@@ -832,6 +832,42 @@ with tab3:
         """, unsafe_allow_html=True)
 
         st.caption("Desktop: užvesk pelę | Mobile: bakstelėk kortelę")
+        
+        # TTS Audio buttons using HTML5 audio with base64
+        col_audio1, col_audio2 = st.columns(2)
+        with col_audio1:
+            if st.button("🔊 Klausyti klausimo", key="tts_q", use_container_width=True):
+                try:
+                    from gtts import gTTS
+                    import base64
+                    tts = gTTS(text=card['klausimas'], lang='lt')
+                    audio_buffer = BytesIO()
+                    tts.write_to_fp(audio_buffer)
+                    audio_buffer.seek(0)
+                    audio_base64 = base64.b64encode(audio_buffer.read()).decode()
+                    st.markdown(f'<audio autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
+                    st.success("🔊 Grojama!")
+                except ImportError:
+                    st.warning("Įdiekite gTTS: pip install gtts")
+                except Exception as e:
+                    st.error(f"Audio klaida: {type(e).__name__}")
+        
+        with col_audio2:
+            if st.button("🔊 Klausyti atsakymo", key="tts_a", use_container_width=True):
+                try:
+                    from gtts import gTTS
+                    import base64
+                    tts = gTTS(text=card['atsakymas'], lang='lt')
+                    audio_buffer = BytesIO()
+                    tts.write_to_fp(audio_buffer)
+                    audio_buffer.seek(0)
+                    audio_base64 = base64.b64encode(audio_buffer.read()).decode()
+                    st.markdown(f'<audio autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
+                    st.success("🔊 Grojama!")
+                except ImportError:
+                    st.warning("Įdiekite gTTS: pip install gtts")
+                except Exception as e:
+                    st.error(f"Audio klaida: {type(e).__name__}")
 
         col1, col2, col3 = st.columns([1, 2, 1])
 
