@@ -584,12 +584,15 @@ GRAŽINK TIK JSON ARRAY formatu:
   {{"klausimas": "...", "atsakymas": "..."}}
 ]"""
                             
+                            # Create proper image part for Gemini
+                            image_part = types.Part.from_bytes(
+                                data=img_bytes,
+                                mime_type="image/png"
+                            )
+                            
                             response = client.models.generate_content(
                                 model="gemini-2.0-flash",
-                                contents=[
-                                    prompt,
-                                    {"mime_type": "image/png", "data": img_bytes}
-                                ]
+                                contents=[prompt, image_part]
                             )
                             
                             content = response.text
