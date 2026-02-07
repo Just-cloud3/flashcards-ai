@@ -78,6 +78,112 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Dark Mode CSS (will be applied conditionally)
+DARK_MODE_CSS = """
+<style>
+    /* Main app background */
+    .stApp {
+        background-color: #0e1117 !important;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #161b22 !important;
+    }
+    
+    /* Text color */
+    .stMarkdown, .stText, p, span, label {
+        color: #c9d1d9 !important;
+    }
+    
+    /* Headers */
+    h1, h2, h3, h4, h5, h6 {
+        color: #f0f6fc !important;
+    }
+    
+    /* Text inputs */
+    .stTextInput input, .stTextArea textarea {
+        background-color: #21262d !important;
+        color: #c9d1d9 !important;
+        border-color: #30363d !important;
+    }
+    
+    /* Select boxes */
+    .stSelectbox > div > div {
+        background-color: #21262d !important;
+        color: #c9d1d9 !important;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #238636 !important;
+        color: white !important;
+        border: none !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #2ea043 !important;
+    }
+    
+    /* Primary buttons */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    /* Expanders */
+    .streamlit-expanderHeader {
+        background-color: #21262d !important;
+        color: #c9d1d9 !important;
+    }
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        color: #58a6ff !important;
+    }
+    
+    /* Info/Warning boxes */
+    .stAlert {
+        background-color: #21262d !important;
+    }
+    
+    /* Flip cards in dark mode */
+    .flip-card-front {
+        background: linear-gradient(135deg, #1a1f35 0%, #2d1f3d 100%) !important;
+    }
+    .flip-card-back {
+        background: linear-gradient(135deg, #0d2818 0%, #1a3d2e 100%) !important;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #161b22 !important;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        color: #8b949e !important;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        color: #f0f6fc !important;
+    }
+    
+    /* Slider */
+    .stSlider > div > div {
+        background-color: #30363d !important;
+    }
+    
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background-color: #21262d !important;
+    }
+    
+    /* Dividers */
+    hr {
+        border-color: #30363d !important;
+    }
+</style>
+"""
+
 # Initialize session state
 if 'flashcards' not in st.session_state:
     st.session_state.flashcards = []
@@ -353,6 +459,13 @@ st.markdown("**Automatiškai sukurk flashcard'us iš teksto ar PDF** | Powered b
 
 # Sidebar
 with st.sidebar:
+    # Theme toggle at the top
+    theme = st.radio("🎨 Tema:", ["☀️ Šviesi", "🌙 Tamsi"], horizontal=True, label_visibility="collapsed")
+    
+    if theme == "🌙 Tamsi":
+        st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
+    
+    st.divider()
     st.header("⚙️ Nustatymai")
     
     # API Key instructions
