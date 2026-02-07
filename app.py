@@ -140,6 +140,10 @@ if 'generation_success' not in st.session_state:
     st.session_state.generation_success = 0
 if 'last_youtube_url' not in st.session_state:
     st.session_state.last_youtube_url = ""
+if 'chat_messages' not in st.session_state:
+    st.session_state.chat_messages = []
+if 'chat_card_context' not in st.session_state:
+    st.session_state.chat_card_context = None
 
 # ==========================
 # GEMINI API SETUP
@@ -513,7 +517,7 @@ with st.sidebar:
     st.markdown("Turite idėjų? [Susisiekite](mailto:petrovic222@gmail.com)")
 
 # Main tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Šaltinis", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Eksportas"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Šaltinis", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Eksportas", "💬 AI Tutor"])
 
 can_generate = st.session_state.flashcards_count < DAILY_LIMIT or st.session_state.is_premium
 
@@ -925,3 +929,108 @@ with tab4:
         for i, card in enumerate(st.session_state.flashcards, 1):
             st.markdown(f"**{i}. {html.escape(card['klausimas'])}**")
             st.caption(f"↳ {html.escape(card['atsakymas'])}")
+
+# ==================
+# TAB 5: AI TUTOR CHAT
+# ==================
+with tab5:
+    st.header("💬 AI Tutor - Paklausk daugiau!")
+    
+    if not st.session_state.flashcards:
+        st.info("Pirmiausia sukurkite flashcard'us 'Šaltinis' tab'e!")
+    elif not api_key:
+        st.warning("Įveskite Gemini API key sidebar'e, kad galėtumėte naudoti AI Tutor.")
+    else:
+        # Card selector
+        card_options = [f"{i+1}. {c['klausimas'][:50]}..." for i, c in enumerate(st.session_state.flashcards)]
+        selected_idx = st.selectbox(
+            "Pasirinkite kortelę, apie kurią norite klausti:",
+            range(len(card_options)),
+            format_func=lambda x: card_options[x]
+        )
+        
+        selected_card = st.session_state.flashcards[selected_idx]
+        
+        # Show selected card context
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 15px; border-radius: 10px; color: white; margin: 10px 0;">
+            <strong>❓ {html.escape(selected_card['klausimas'])}</strong><br>
+            <span style="opacity: 0.9;">✅ {html.escape(selected_card['atsakymas'])}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Reset chat if card changed
+        if st.session_state.chat_card_context != selected_idx:
+            st.session_state.chat_messages = []
+            st.session_state.chat_card_context = selected_idx
+        
+        st.divider()
+        st.subheader("💬 Pokalbis")
+        
+        # Display chat history
+        for msg in st.session_state.chat_messages:
+            if msg["role"] == "user":
+                st.chat_message("user").write(msg["content"])
+            else:
+                st.chat_message("assistant").write(msg["content"])
+        
+        # Chat input
+        user_question = st.chat_input("Paklauskite ko nors apie šią temą...")
+        
+        if user_question:
+            # Add user message
+            st.session_state.chat_messages.append({"role": "user", "content": user_question})
+            st.chat_message("user").write(user_question)
+            
+            # Generate AI response
+            with st.spinner("AI galvoja..."):
+                try:
+                    client = get_gemini_client(api_key)
+                    
+                    # Build context from card + chat history
+                    chat_history = "\n".join([
+                        f"{'Studentas' if m['role'] == 'user' else 'AI Tutor'}: {m['content']}"
+                        for m in st.session_state.chat_messages[:-1]  # Exclude current question
+                    ])
+                    
+                    prompt = f"""Tu esi draugiškas AI tutorius, padedantis studentams suprasti medžiagą.
+
+KONTEKSTAS (flashcard):
+Klausimas: {selected_card['klausimas']}
+Atsakymas: {selected_card['atsakymas']}
+
+{"ANKSTESNIS POKALBIS:" + chr(10) + chat_history if chat_history else ""}
+
+STUDENTO KLAUSIMAS: {user_question}
+
+TAISYKLĖS:
+1. Atsakyk lietuviškai, draugiškai ir aiškiai
+2. Naudok analogijas ir pavyzdžius
+3. Jei klausimas ne apie temą - mandagiai grąžink prie temos
+4. Būk glaustus (2-4 sakiniai)
+5. Naudok emoji kad būtų įdomiau 🎓
+
+ATSAKYMAS:"""
+
+                    response = client.models.generate_content(
+                        model=GEMINI_MODEL,
+                        contents=prompt
+                    )
+                    
+                    ai_response = response.text.strip() if response.text else "Atsiprašau, nepavyko sugeneruoti atsakymo. Bandykite dar kartą!"
+                    
+                    st.session_state.chat_messages.append({"role": "assistant", "content": ai_response})
+                    st.chat_message("assistant").write(ai_response)
+                    
+                except Exception as e:
+                    error_msg = "Klaida gaunant atsakymą. Patikrinkite API key ir bandykite dar kartą."
+                    if "quota" in str(e).lower() or "429" in str(e):
+                        error_msg = "API kvotos limitas pasiektas. Palaukite kelias minutes."
+                    st.error(error_msg)
+        
+        # Clear chat button
+        if st.session_state.chat_messages:
+            if st.button("🗑️ Išvalyti pokalbį"):
+                st.session_state.chat_messages = []
+                st.rerun()
+
