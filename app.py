@@ -198,47 +198,14 @@ def extract_video_id(youtube_url):
     return None
 
 def get_youtube_transcript(video_id, languages=['lt', 'en']):
-    """Fetch transcript from YouTube video"""
+    """Fetch transcript from YouTube video using get_transcript for maximum compatibility"""
     if not YOUTUBE_AVAILABLE:
         return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
 
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        transcript = None
-        detected_lang = None
-
-        # 1. Try preferred languages
-        for lang in languages:
-            try:
-                transcript = transcript_list.find_transcript([lang])
-                detected_lang = lang
-                break
-            except Exception:
-                continue
-
-        # 2. Try generated English as fallback
-        if not transcript:
-            try:
-                transcript = transcript_list.find_generated_transcript(['en'])
-                detected_lang = 'en (auto)'
-            except Exception:
-                pass
-
-        # 3. Final fallback: just take the first available transcript
-        if not transcript:
-            try:
-                # Iterate through all available transcripts
-                for t in transcript_list:
-                    transcript = t
-                    detected_lang = t.language_code
-                    break
-            except Exception:
-                pass
-
-        if not transcript:
-            return {'success': False, 'error': 'Šiam video nėra jokių subtitrų (nei rankinių, nei automatinių)'}
-
-        transcript_data = transcript.fetch()
+        # get_transcript internally tries the languages in order
+        # and handles finding the best match (manual or generated)
+        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
 
         if not transcript_data:
             return {'success': False, 'error': 'Transkripcija tuščia'}
@@ -259,16 +226,29 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
         return {
             'success': True,
             'text': full_text,
-            'language': detected_lang,
+            'language': 'lt/en', # get_transcript doesn't easily return which one it picked
             'duration': duration,
             'segments': len(transcript_data)
         }
     except TranscriptsDisabled:
         return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
     except NoTranscriptFound:
-        return {'success': False, 'error': 'Nerasta tinkamų subtitrų'}
+        # If preferred languages fail, try English auto-generated as a last resort
+        try:
+            transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+            full_text = " ".join([seg.get('text', '') for seg in transcript_data])
+            last_seg = transcript_data[-1]
+            duration = last_seg.get('start', 0) + last_seg.get('duration', 0)
+            return {
+                'success': True,
+                'text': full_text,
+                'language': 'en (auto)',
+                'duration': duration,
+                'segments': len(transcript_data)
+            }
+        except Exception:
+            return {'success': False, 'error': 'Šiam video nerasta jokių subtitrų'}
     except Exception as e:
-        # Return the actual error message for better debugging
         return {'success': False, 'error': f'YouTube klaida: {str(e)}'}
 
 def format_duration(seconds):
