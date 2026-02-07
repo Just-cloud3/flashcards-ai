@@ -787,6 +787,13 @@ with tab1:
                             if img_format not in ('JPEG', 'PNG', 'WEBP'):
                                 img_format = 'PNG'
 
+                            # Resize image if too large (max 1600px width/height)
+                            # This helps avoid ClientError and speeds up processing
+                            max_size = 1600
+                            if image.width > max_size or image.height > max_size:
+                                image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                                st.caption(f"Nuotrauka optimizuota ({image.width}x{image.height})")
+
                             img_buffer = BytesIO()
                             image.save(img_buffer, format=img_format)
                             img_bytes = img_buffer.getvalue()
@@ -829,6 +836,8 @@ GRAŽINK TIK JSON ARRAY formatu:
                                 st.error("Užklausa užtruko per ilgai. Bandykite mažesnę nuotrauką.")
                             else:
                                 st.error(f"Klaida analizuojant nuotrauką: {error_type}")
+                                with st.expander("Klaidos detalės"):
+                                    st.code(str(e))
 
 # ==================
 # TAB 2: MOKYMASIS
