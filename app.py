@@ -580,7 +580,13 @@ with st.sidebar:
                             st.success("Prisijungta! ✅")
                             st.rerun()
                         else:
-                            st.error("Neteisingi duomenys")
+                            err = result.get('error', '').lower()
+                            if "email not confirmed" in err:
+                                st.error("📧 El. paštas dar nepatvirtintas. Patikrinkite savo pašto dėžutę (ir Spam)!")
+                            elif "invalid login credentials" in err:
+                                st.error("❌ Neteisingas el. paštas arba slaptažodis.")
+                            else:
+                                st.error(f"❌ Klaida: {result.get('error', 'Neteisingi duomenys')}")
                     else:
                         st.warning("Įveskite el. paštą ir slaptažodį")
             else:
