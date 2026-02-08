@@ -26,8 +26,7 @@ except ImportError:
 
 # YouTube transcript support
 try:
-    import youtube_transcript_api as yta
-    from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
+    from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
     YOUTUBE_AVAILABLE = True
 except ImportError:
     YOUTUBE_AVAILABLE = False
@@ -179,35 +178,61 @@ def get_gemini_client(api_key):
 # ==========================
 
 def extract_video_id(youtube_url):
-    """Extract video ID from various YouTube URL formats"""
-    # Validate YouTube domain first
-    if not re.search(r'(youtube\.com|youtu\.be)', youtube_url):
-        return None
-
+    """Extract video ID from various YouTube URL formats with extra cleaning"""
+    # Clean the input from common trailing junk (like parentheses or dots) from copy-pastes
+    url = youtube_url.strip().split(' ')[0] # Take only first part before any spaces
+    url = re.sub(r'[)\].].*$', '', url) # Remove trailing characters like ), ], or .
+    
+    # YouTube ID is strictly 11 chars. We try to find it in common patterns.
     patterns = [
-        r'(?:v=)([0-9A-Za-z_-]{11})',
-        r'(?:embed\/)([0-9A-Za-z_-]{11})',
-        r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})',
-        r'(?:shorts\/)([0-9A-Za-z_-]{11})',
-        r'(?:live\/)([0-9A-Za-z_-]{11})',
+        r'v=([0-9A-Za-z_-]{11})',
+        r'embed/([0-9A-Za-z_-]{11})',
+        r'youtu\.be/([0-9A-Za-z_-]{11})',
+        r'shorts/([0-9A-Za-z_-]{11})'
     ]
+    
     for pattern in patterns:
-        match = re.search(pattern, youtube_url)
+        match = re.search(pattern, url)
         if match:
             return match.group(1)
-    return None
+            
+    # Fallback: look for any 11-char block that looks like a YouTube ID
+    id_match = re.search(r'([0-9A-Za-z_-]{11})', url)
+    return id_match.group(1) if id_match else None
 
 def get_youtube_transcript(video_id, languages=['lt', 'en']):
-    """Fetch transcript from YouTube video (FOUNDATIONAL VERSION)"""
+    """Fetch transcript from YouTube video (RELIABLE FOUNDATION)"""
     if not YOUTUBE_AVAILABLE:
         return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
 
     try:
-        # Using the absolute path through the module to be extremely safe
-        transcript_data = yta.YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
+        from youtube_transcript_api import YouTubeTranscriptApi
+        
+        # 1. Get List of all available transcripts first
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        
+        transcript = None
+        # 2. Strategy: Try manual (LT/EN) -> Try auto (LT/EN) -> Take any first available
+        try:
+            transcript = transcript_list.find_transcript(languages)
+        except:
+            try:
+                # Try automated versions
+                transcript = transcript_list.find_generated_transcript(languages)
+            except:
+                # Absolute fallback: take whatever is available
+                try:
+                    transcript = next(iter(transcript_list))
+                except:
+                    pass
+
+        if not transcript:
+            return {'success': False, 'error': 'Šiam video nerasta jokių subtitrų'}
+
+        transcript_data = transcript.fetch()
         
         if not transcript_data:
-            return {'success': False, 'error': 'Šiam video nėra subtitrų'}
+            return {'success': False, 'error': 'Transkripcija tuščia'}
 
         full_text = " ".join([seg.get('text', '') for seg in transcript_data])
         
@@ -221,14 +246,14 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
         return {
             'success': True,
             'text': full_text,
-            'language': 'lt/en',
+            'language': transcript.language_code,
             'duration': duration,
             'segments': len(transcript_data)
         }
     except TranscriptsDisabled:
         return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
     except NoTranscriptFound:
-        return {'success': False, 'error': 'Nerasta subtitrų nurodytomis kalbomis'}
+        return {'success': False, 'error': 'Nerasta jokių subtitrų šiam video'}
     except Exception as e:
         return {'success': False, 'error': f'YouTube klaida: {str(e)}'}
 
