@@ -178,83 +178,86 @@ def get_gemini_client(api_key):
 # ==========================
 
 def extract_video_id(youtube_url):
-    """Extract video ID from various YouTube URL formats with safe cleaning"""
-    # Safe cleaning: remove common trailing junk from copy-pastes
-    url = youtube_url.strip().rstrip(').] ')
+    """Extract 11-character YouTube video ID (FOOLPROOF VERSION)"""
+    if not youtube_url:
+        return None
+        
+    # Standard 11-character regex for YouTube IDs
+    id_pattern = r'([0-9A-Za-z_-]{11})'
     
-    # YouTube ID is strictly 11 chars. We try to find it in common patterns.
+    # Try common URL patterns first
     patterns = [
-        r'v=([0-9A-Za-z_-]{11})',
-        r'embed/([0-9A-Za-z_-]{11})',
-        r'youtu\.be/([0-9A-Za-z_-]{11})',
-        r'shorts/([0-9A-Za-z_-]{11})'
+        r'v=' + id_pattern,
+        r'embed/' + id_pattern,
+        r'youtu\.be/' + id_pattern,
+        r'shorts/' + id_pattern
     ]
     
     for pattern in patterns:
-        match = re.search(pattern, url)
+        match = re.search(pattern, youtube_url)
         if match:
             return match.group(1)
             
-    # Fallback: look for any 11-char block that looks like a YouTube ID
-    id_match = re.search(r'([0-9A-Za-z_-]{11})', url)
-    return id_match.group(1) if id_match else None
+    # Final fallback: just look for ANY 11-char string that looks like an ID
+    # avoiding common words and domain parts
+    potential_ids = re.findall(id_pattern, youtube_url)
+    for pid in potential_ids:
+        if pid not in ['youtube', 'watch', 'embed', 'shorts']:
+            return pid
+            
+    return None
 
 def get_youtube_transcript(video_id, languages=['lt', 'en']):
-    """Fetch transcript from YouTube video (RELIABLE FOUNDATION)"""
+    """Fetch transcript from YouTube video (STABLE FOUNDATION)"""
     if not YOUTUBE_AVAILABLE:
         return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
 
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-        
-        # 1. Get List of all available transcripts first
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        
-        transcript = None
-        # 2. Strategy: Try manual (LT/EN) -> Try auto (LT/EN) -> Take any first available
-        try:
-            transcript = transcript_list.find_transcript(languages)
-        except:
-            try:
-                # Try automated versions
-                transcript = transcript_list.find_generated_transcript(languages)
-            except:
-                # Absolute fallback: take whatever is available
-                try:
-                    transcript = next(iter(transcript_list))
-                except:
-                    pass
-
-        if not transcript:
-            return {'success': False, 'error': 'Šiam video nerasta jokių subtitrų'}
-
-        transcript_data = transcript.fetch()
+        # Simplest possible call - let the library handle language priority
+        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
         
         if not transcript_data:
-            return {'success': False, 'error': 'Transkripcija tuščia'}
+            return {'success': False, 'error': 'Šiam video nėra subtitrų'}
 
         full_text = " ".join([seg.get('text', '') for seg in transcript_data])
         
-        # Safe duration calculation
+        # Duration calculation
+        duration = 0
         if transcript_data:
             last_seg = transcript_data[-1]
             duration = last_seg.get('start', 0) + last_seg.get('duration', 0)
-        else:
-            duration = 0
 
         return {
             'success': True,
             'text': full_text,
-            'language': transcript.language_code,
+            'language': 'lt/en',
             'duration': duration,
             'segments': len(transcript_data)
         }
     except TranscriptsDisabled:
         return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
     except NoTranscriptFound:
-        return {'success': False, 'error': 'Nerasta jokių subtitrų šiam video'}
+        # Try English auto-generated as a final attempt
+        try:
+            transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+            full_text = " ".join([seg.get('text', '') for seg in transcript_data])
+            return {
+                'success': True,
+                'text': full_text,
+                'language': 'en (auto)',
+                'duration': 0,
+                'segments': len(transcript_data)
+            }
+        except:
+            return {'success': False, 'error': 'Šiam video nerasta jokių subtitrų'}
     except Exception as e:
-        return {'success': False, 'error': f'YouTube klaida: {str(e)}'}
+        err_msg = str(e)
+        if "no element found" in err_msg.lower() or "column 0" in err_msg.lower():
+            return {
+                'success': False, 
+                'error': 'YouTube blokuoja serverį (IP Block). Patarimas: nukopijuokite tekstą rankiniu būdu iš YouTube ir įklijuokite į „Tekstas“ skiltį.'
+            }
+        return {'success': False, 'error': f'YouTube klaida: {err_msg}'}
 
 def format_duration(seconds):
     """Convert seconds to MM:SS format"""
