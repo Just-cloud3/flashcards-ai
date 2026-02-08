@@ -178,10 +178,9 @@ def get_gemini_client(api_key):
 # ==========================
 
 def extract_video_id(youtube_url):
-    """Extract video ID from various YouTube URL formats with extra cleaning"""
-    # Clean the input from common trailing junk (like parentheses or dots) from copy-pastes
-    url = youtube_url.strip().split(' ')[0] # Take only first part before any spaces
-    url = re.sub(r'[)\].].*$', '', url) # Remove trailing characters like ), ], or .
+    """Extract video ID from various YouTube URL formats with safe cleaning"""
+    # Safe cleaning: remove common trailing junk from copy-pastes
+    url = youtube_url.strip().rstrip(').] ')
     
     # YouTube ID is strictly 11 chars. We try to find it in common patterns.
     patterns = [
