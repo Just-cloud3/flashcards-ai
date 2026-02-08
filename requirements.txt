@@ -1,4 +1,4 @@
-youtube-transcript-api==0.6.2
+youtube-transcript-api>=1.2.4
 streamlit>=1.28.0
 google-genai>=1.0.0
 PyPDF2>=3.0.0
