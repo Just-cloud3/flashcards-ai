@@ -26,7 +26,8 @@ except ImportError:
 
 # YouTube transcript support
 try:
-    from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+    import youtube_transcript_api as yta
+    from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
     YOUTUBE_AVAILABLE = True
 except ImportError:
     YOUTUBE_AVAILABLE = False
@@ -202,8 +203,8 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
         return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
 
     try:
-        # Step 2: Use stable API calls from user's recommended manual
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
+        # Using the absolute path through the module to be extremely safe
+        transcript_data = yta.YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
         
         if not transcript_data:
             return {'success': False, 'error': 'Šiam video nėra subtitrų'}
@@ -526,7 +527,8 @@ with st.sidebar:
                     st.rerun()
         else:
             # Login/Signup forms
-            auth_tab = st.radio("", ["Prisijungti", "Registruotis"], horizontal=True, label_visibility="collapsed")
+            st.write("---")
+            auth_tab = st.radio("Paskyros veiksmas:", ["Prisijungti", "Registruotis"], horizontal=True, label_visibility="collapsed")
             
             email = st.text_input("El. paštas", key="auth_email", placeholder="studentas@email.com")
             password = st.text_input("Slaptažodis", type="password", key="auth_pass", placeholder="••••••••")
