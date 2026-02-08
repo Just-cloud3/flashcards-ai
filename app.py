@@ -26,7 +26,11 @@ except ImportError:
 
 # YouTube transcript support
 try:
-    from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+    from youtube_transcript_api import YouTubeTranscriptApi
+    from youtube_transcript_api._errors import (
+        TranscriptsDisabled, NoTranscriptFound,
+        VideoUnavailable, IpBlocked, RequestBlocked
+    )
     YOUTUBE_AVAILABLE = True
 except ImportError:
     YOUTUBE_AVAILABLE = False
@@ -208,56 +212,58 @@ def extract_video_id(youtube_url):
     return None
 
 def get_youtube_transcript(video_id, languages=['lt', 'en']):
-    """Fetch transcript from YouTube video (STABLE FOUNDATION)"""
+    """Fetch transcript from YouTube video (v1.2 API)"""
     if not YOUTUBE_AVAILABLE:
         return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
 
     try:
-        # Simplest possible call - let the library handle language priority
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
-        
-        if not transcript_data:
+        api = YouTubeTranscriptApi()
+        result = api.fetch(video_id, languages=languages)
+
+        if not result.snippets:
             return {'success': False, 'error': 'Šiam video nėra subtitrų'}
 
-        full_text = " ".join([seg.get('text', '') for seg in transcript_data])
-        
-        # Duration calculation
-        duration = 0
-        if transcript_data:
-            last_seg = transcript_data[-1]
-            duration = last_seg.get('start', 0) + last_seg.get('duration', 0)
+        full_text = " ".join([s.text for s in result.snippets])
+        last = result.snippets[-1]
+        duration = last.start + last.duration
+
+        # Limit transcript length
+        if len(full_text) > MAX_TRANSCRIPT_CHARS:
+            full_text = full_text[:MAX_TRANSCRIPT_CHARS]
 
         return {
             'success': True,
             'text': full_text,
-            'language': 'lt/en',
+            'language': result.language_code,
             'duration': duration,
-            'segments': len(transcript_data)
+            'segments': len(result.snippets)
         }
     except TranscriptsDisabled:
         return {'success': False, 'error': 'Subtitrai išjungti šiam video'}
     except NoTranscriptFound:
-        # Try English auto-generated as a final attempt
+        # Fallback: try just English
         try:
-            transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-            full_text = " ".join([seg.get('text', '') for seg in transcript_data])
+            api = YouTubeTranscriptApi()
+            result = api.fetch(video_id, languages=['en'])
+            full_text = " ".join([s.text for s in result.snippets])
             return {
                 'success': True,
                 'text': full_text,
                 'language': 'en (auto)',
-                'duration': 0,
-                'segments': len(transcript_data)
+                'duration': result.snippets[-1].start + result.snippets[-1].duration if result.snippets else 0,
+                'segments': len(result.snippets)
             }
-        except:
+        except Exception:
             return {'success': False, 'error': 'Šiam video nerasta jokių subtitrų'}
+    except VideoUnavailable:
+        return {'success': False, 'error': 'Video neprieinamas. Gali būti privatus arba ištrintas.'}
+    except (IpBlocked, RequestBlocked):
+        return {
+            'success': False,
+            'error': 'YouTube blokuoja serverį. Patarimas: atidarykite video → CC → nukopijuokite subtitrus → įklijuokite į „Tekstas" skiltį.'
+        }
     except Exception as e:
-        err_msg = str(e)
-        if "no element found" in err_msg.lower() or "column 0" in err_msg.lower():
-            return {
-                'success': False, 
-                'error': 'YouTube blokuoja serverį (IP Block). Patarimas: nukopijuokite tekstą rankiniu būdu iš YouTube ir įklijuokite į „Tekstas“ skiltį.'
-            }
-        return {'success': False, 'error': f'YouTube klaida: {err_msg}'}
+        return {'success': False, 'error': f'YouTube klaida: {type(e).__name__}'}
 
 def format_duration(seconds):
     """Convert seconds to MM:SS format"""
