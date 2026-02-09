@@ -311,7 +311,10 @@ def delete_user_account(user_id: str):
         # 3. Delete all sets
         supabase.table("flashcard_sets").delete().eq("user_id", user_id).execute()
 
-        # 4. Sign out (clears auth session)
+        # 4. Delete profile
+        supabase.table("profiles").delete().eq("id", user_id).execute()
+
+        # 5. Sign out (clears auth session)
         supabase.auth.sign_out()
         if 'supabase_client' in st.session_state:
             del st.session_state.supabase_client

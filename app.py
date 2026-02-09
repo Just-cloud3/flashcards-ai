@@ -275,8 +275,8 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
         duration = last.start + last.duration
 
         # Limit transcript length
-        if len(full_text) > MAX_TRANSCRIPT_CHARS:
-            full_text = full_text[:MAX_TRANSCRIPT_CHARS]
+        if len(full_text) > MAX_TRANSCRIPT_CHARS_FREE:
+            full_text = full_text[:MAX_TRANSCRIPT_CHARS_FREE]
 
         return {
             'success': True,
@@ -521,13 +521,13 @@ def extract_text_from_pdf(pdf_file):
             st.warning("Šis PDF atrodo skanuotas (be teksto sluoksnio). Naudokite Nuotraukos režimą.")
             return ""
 
-        if len(text) > MAX_PDF_CHARS:
-            truncated = text[:MAX_PDF_CHARS]
+        if len(text) > MAX_PDF_CHARS_FREE:
+            truncated = text[:MAX_PDF_CHARS_FREE]
             last_period = truncated.rfind('.')
-            if last_period > MAX_PDF_CHARS * 0.8:
+            if last_period > MAX_PDF_CHARS_FREE * 0.8:
                 truncated = truncated[:last_period + 1]
             text = truncated
-            st.warning(f"PDF tekstas apribotas iki ~{MAX_PDF_CHARS:,} simbolių")
+            st.warning(f"PDF tekstas apribotas iki ~{MAX_PDF_CHARS_FREE:,} simbolių")
 
         return text
     except Exception as e:
@@ -620,22 +620,19 @@ with st.sidebar:
             with st.expander("🔒 Mano duomenys (BDAR)"):
                 st.caption("Pagal ES Bendrąjį duomenų apsaugos reglamentą (BDAR) turite teisę:")
 
-                # Data export (Art. 20)
-                if st.button("📥 Eksportuoti mano duomenis", use_container_width=True):
-                    with st.spinner("Ruošiami duomenys..."):
-                        result = export_user_data(
-                            st.session_state.user['id'],
-                            st.session_state.user['email']
-                        )
-                        if result['success']:
-                            st.download_button(
-                                "⬇️ Atsisiųsti JSON",
-                                json.dumps(result['data'], ensure_ascii=False, indent=2, default=str),
-                                f"mano_duomenys_{datetime.now().strftime('%Y%m%d')}.json",
-                                "application/json"
-                            )
-                        else:
-                            st.error("Nepavyko eksportuoti duomenų")
+                # Data export (Art. 20) - direct download button
+                export_result = export_user_data(
+                    st.session_state.user['id'],
+                    st.session_state.user['email']
+                )
+                if export_result.get('success'):
+                    st.download_button(
+                        "📥 Eksportuoti mano duomenis",
+                        json.dumps(export_result['data'], ensure_ascii=False, indent=2, default=str),
+                        f"mano_duomenys_{datetime.now().strftime('%Y%m%d')}.json",
+                        "application/json",
+                        use_container_width=True
+                    )
 
                 st.divider()
 
@@ -688,9 +685,8 @@ with st.sidebar:
                     sub_info = get_subscription_status(sub_id)
                     if sub_info:
                         if sub_info.get('cancel_at_period_end'):
-                            from datetime import datetime as dt
                             end_ts = sub_info.get('current_period_end', 0)
-                            end_date = dt.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
+                            end_date = datetime.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
                             st.caption(f"Prenumerata atšaukta. Galioja iki {end_date}")
                         else:
                             if st.button("Atšaukti prenumeratą", use_container_width=True):
@@ -859,7 +855,7 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
 # Main tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Šaltinis", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Eksportas", "💬 AI Tutor"])
 
-can_generate = st.session_state.flashcards_count < DAILY_LIMIT or st.session_state.is_premium
+can_generate = st.session_state.flashcards_count < get_limit('daily')
 
 # ==================
 # TAB 1: ŠALTINIS
