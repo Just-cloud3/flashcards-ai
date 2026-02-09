@@ -20,7 +20,7 @@ try:
         save_flashcard_set, load_user_flashcards, update_card_progress,
         get_cards_for_review, delete_flashcard_set,
         export_user_data, delete_user_account,
-        get_user_premium_status, set_user_premium_status
+        get_user_premium_status, set_user_premium_status, get_user_profile
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
@@ -28,7 +28,10 @@ except ImportError:
 
 # Stripe integration
 try:
-    from stripe_integration import create_checkout_session, verify_stripe_session
+    from stripe_integration import (
+        create_checkout_session, verify_stripe_session,
+        cancel_subscription, get_subscription_status
+    )
     STRIPE_AVAILABLE = True
 except ImportError:
     STRIPE_AVAILABLE = False
@@ -184,18 +187,31 @@ if 'user' not in st.session_state:
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = 'login'
 
-# Handle Stripe Redirect
+# Handle Stripe Redirect (after successful payment)
 if STRIPE_AVAILABLE and 'session_id' in st.query_params:
     session_id = st.query_params['session_id']
-    if verify_stripe_session(session_id):
-        if st.session_state.user and SUPABASE_AVAILABLE:
-            set_user_premium_status(st.session_state.user['id'], True)
-            st.session_state.is_premium = True
-            st.success("Sveikiname! Jūs dabar esate 💎 Premium narys! 🎉")
-            # Clear query params to avoid re-triggering
-            st.query_params.clear()
-        else:
-            st.warning("Apmokėjimas sėkmingas, bet prašome prisijungti, kad aktyvuotumėte Premium!")
+    # Prevent replay: check if already processed
+    if session_id != st.session_state.get('processed_session_id'):
+        payment = verify_stripe_session(session_id)
+        if payment:
+            if st.session_state.user and SUPABASE_AVAILABLE:
+                set_user_premium_status(
+                    st.session_state.user['id'],
+                    True,
+                    subscription_id=payment.get('subscription_id'),
+                    stripe_customer_id=payment.get('customer_id')
+                )
+                st.session_state.is_premium = True
+                st.session_state.subscription_id = payment.get('subscription_id')
+                st.session_state.processed_session_id = session_id
+                st.success("Sveikiname! Jūs dabar esate Premium narys!")
+                st.query_params.clear()
+            else:
+                # Save payment info so it can be activated after login
+                st.session_state.pending_payment = payment
+                st.warning("Apmokėjimas sėkmingas! Prisijunkite, kad aktyvuotumėte Premium.")
+    else:
+        st.query_params.clear()
 
 # ==========================
 # GEMINI API SETUP
@@ -649,23 +665,43 @@ with st.sidebar:
 
             st.divider()
             
-            # Premium Upgrade Section
+            # Premium Section
             if not st.session_state.is_premium and STRIPE_AVAILABLE:
                 st.markdown("### 💎 Tapk Premium")
                 st.markdown("**€3.99/mėn**")
-                st.write("- ♾️ Neriboti flashcard'ai")
-                st.write("- 📄 Didesni failų limitai")
-                st.write("- ⚡ Prioritetinis AI greitis")
-                
-                if st.button("🚀 Upgrade", type="primary", use_container_width=True):
+                st.write("- Neriboti flashcard'ai")
+                st.write("- Didesni failų limitai (200k simbolių)")
+                st.write("- Prioritetinis AI greitis")
+
+                if st.button("Upgrade", type="primary", use_container_width=True):
                     checkout_url = create_checkout_session(st.session_state.user['email'])
                     if checkout_url:
-                        # Use a clickable link if button doesn't work for redirect
-                        st.markdown(f'<a href="{checkout_url}" target="_self" style="text-decoration: none;"><button style="width:100%; height:40px; background-color:#ff4b4b; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">💳 Pereiti į apmokėjimą</button></a>', unsafe_allow_html=True)
+                        st.markdown(f'<a href="{checkout_url}" target="_self" style="text-decoration:none;"><button style="width:100%;height:40px;background:#ff4b4b;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:bold;">Pereiti į apmokėjimą</button></a>', unsafe_allow_html=True)
                     else:
                         st.error("Nepavyko sukurti mokėjimo sesijos.")
+
             elif st.session_state.is_premium:
-                st.success("✨ Jūs esate Premium narys")
+                st.success("Premium narys")
+                # Subscription management
+                sub_id = st.session_state.get('subscription_id')
+                if sub_id and STRIPE_AVAILABLE:
+                    sub_info = get_subscription_status(sub_id)
+                    if sub_info:
+                        if sub_info.get('cancel_at_period_end'):
+                            from datetime import datetime as dt
+                            end_ts = sub_info.get('current_period_end', 0)
+                            end_date = dt.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
+                            st.caption(f"Prenumerata atšaukta. Galioja iki {end_date}")
+                        else:
+                            if st.button("Atšaukti prenumeratą", use_container_width=True):
+                                result = cancel_subscription(sub_id)
+                                if result.get('success'):
+                                    from datetime import datetime as dt
+                                    end_ts = result.get('cancel_at', 0)
+                                    end_date = dt.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
+                                    st.info(f"Prenumerata atšaukta. Premium galios iki {end_date}")
+                                else:
+                                    st.error("Nepavyko atšaukti. Susisiekite su mumis.")
         else:
             # Login/Signup forms
             st.write("---")
@@ -683,10 +719,24 @@ with st.sidebar:
                                 'id': str(result['user'].id),
                                 'email': result['user'].email
                             }
-                            # Check premium status
+                            # Load profile (premium, subscription)
                             if SUPABASE_AVAILABLE:
-                                st.session_state.is_premium = get_user_premium_status(st.session_state.user['id'])
-                                
+                                profile = get_user_profile(st.session_state.user['id'])
+                                st.session_state.is_premium = profile.get('is_premium', False)
+                                st.session_state.subscription_id = profile.get('subscription_id')
+
+                            # Activate pending payment (paid before login)
+                            if 'pending_payment' in st.session_state and SUPABASE_AVAILABLE:
+                                pp = st.session_state.pending_payment
+                                set_user_premium_status(
+                                    st.session_state.user['id'], True,
+                                    subscription_id=pp.get('subscription_id'),
+                                    stripe_customer_id=pp.get('customer_id')
+                                )
+                                st.session_state.is_premium = True
+                                st.session_state.subscription_id = pp.get('subscription_id')
+                                del st.session_state.pending_payment
+
                             # Load user's flashcards and study history
                             sync_flashcards_from_supabase(st.session_state.user['id'])
                             st.success("Prisijungta! ✅")

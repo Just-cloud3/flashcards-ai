@@ -219,30 +219,44 @@ def delete_flashcard_set(set_id: str):
 # PREMIUM / USER PROFILE
 # ========================
 
+def get_user_profile(user_id: str):
+    """Get full user profile (premium status, subscription info)"""
+    try:
+        supabase = get_supabase()
+        result = supabase.table("profiles").select("*").eq("id", user_id).execute()
+        if result.data:
+            return result.data[0]
+
+        # If no profile, create one
+        supabase.table("profiles").insert({
+            "id": user_id,
+            "is_premium": False,
+            "subscription_id": None,
+            "stripe_customer_id": None
+        }).execute()
+        return {"id": user_id, "is_premium": False, "subscription_id": None, "stripe_customer_id": None}
+    except Exception:
+        return {"id": user_id, "is_premium": False, "subscription_id": None, "stripe_customer_id": None}
+
+
 def get_user_premium_status(user_id: str):
     """Check if user has premium status"""
-    try:
-        supabase = get_supabase()
-        # We'll use a 'profiles' table for this
-        result = supabase.table("profiles").select("is_premium").eq("id", user_id).execute()
-        if result.data:
-            return result.data[0].get("is_premium", False)
-        
-        # If no profile, create one
-        supabase.table("profiles").insert({"id": user_id, "is_premium": False}).execute()
-        return False
-    except Exception as e:
-        print(f"Supabase Profile Error: {e}")
-        return False
+    profile = get_user_profile(user_id)
+    return profile.get("is_premium", False)
 
-def set_user_premium_status(user_id: str, status: bool):
-    """Update user's premium status"""
+
+def set_user_premium_status(user_id: str, status: bool, subscription_id=None, stripe_customer_id=None):
+    """Update user's premium status and Stripe info"""
     try:
         supabase = get_supabase()
-        supabase.table("profiles").upsert({"id": user_id, "is_premium": status}).execute()
+        data = {"id": user_id, "is_premium": status}
+        if subscription_id is not None:
+            data["subscription_id"] = subscription_id
+        if stripe_customer_id is not None:
+            data["stripe_customer_id"] = stripe_customer_id
+        supabase.table("profiles").upsert(data).execute()
         return True
-    except Exception as e:
-        print(f"Supabase Profile Update Error: {e}")
+    except Exception:
         return False
 
 
