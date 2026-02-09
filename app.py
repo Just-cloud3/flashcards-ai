@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 import os
 import re
 from dotenv import load_dotenv
+
+# Load environment variables IMMEDIATELY
+load_dotenv()
 from PIL import Image
 from io import BytesIO
 
@@ -46,9 +49,6 @@ try:
     YOUTUBE_AVAILABLE = True
 except ImportError:
     YOUTUBE_AVAILABLE = False
-
-# Load environment variables
-load_dotenv()
 
 # ===========================
 # CONSTANTS
