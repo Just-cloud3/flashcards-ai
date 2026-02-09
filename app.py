@@ -18,7 +18,7 @@ try:
     from supabase_client import (
         sign_in_with_email, sign_up_with_email, sign_out,
         save_flashcard_set, load_user_flashcards, update_card_progress,
-        get_cards_for_review
+        get_cards_for_review, delete_flashcard_set
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
@@ -305,10 +305,15 @@ def sync_flashcards_from_supabase(user_id):
         return True
     return False
 
-def add_cards_to_study(flashcards):
-    """Add generated flashcards to study deck with SR metadata"""
+def add_cards_to_study(flashcards, db_ids=None):
+    """Add generated flashcards to study deck with SR metadata.
+    Uses database IDs when available so Supabase sync works correctly."""
     for i, card in enumerate(flashcards):
-        card_id = f"card_{datetime.now().timestamp()}_{i}"
+        # Use database ID if available, otherwise generate local ID
+        if db_ids and i < len(db_ids):
+            card_id = str(db_ids[i])
+        else:
+            card_id = f"card_{datetime.now().timestamp()}_{i}"
         if card_id not in st.session_state.study_cards:
             st.session_state.study_cards[card_id] = {
                 "id": card_id,
@@ -334,9 +339,9 @@ def update_card_difficulty(card_id, difficulty):
         card["difficulty"] = difficulty
         card["times_reviewed"] = card.get("times_reviewed", 0) + 1
         card["next_review"] = calculate_next_review(difficulty)
-        
-        # Sync with Supabase if logged in
-        if st.session_state.user and SUPABASE_AVAILABLE:
+
+        # Sync with Supabase only if card has a DB ID (not local card_* format)
+        if st.session_state.user and SUPABASE_AVAILABLE and not card_id.startswith("card_"):
             update_card_progress(card_id, difficulty)
 
 # ==========================
@@ -432,15 +437,20 @@ GRAŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
 def save_generated_cards(cards):
     """Save generated cards to session state and trigger success"""
     if cards:
+        db_card_ids = []
+
         # Save to Supabase if logged in
         if st.session_state.user and SUPABASE_AVAILABLE:
             with st.spinner("Sinchronizuojama su paskyra..."):
-                save_flashcard_set(st.session_state.user['id'], "Naujas rinkinys", cards)
-        
+                set_name = f"Rinkinys {datetime.now().strftime('%m-%d %H:%M')}"
+                result = save_flashcard_set(st.session_state.user['id'], set_name, cards)
+                if result.get('success'):
+                    db_card_ids = result.get('card_ids', [])
+
         st.session_state.flashcards = cards
         st.session_state.flashcards_count += len(cards)
         st.session_state.current_card = 0
-        add_cards_to_study(cards)
+        add_cards_to_study(cards, db_card_ids)
         st.session_state.generation_success = len(cards)
         st.rerun()
 

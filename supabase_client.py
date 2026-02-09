@@ -2,19 +2,19 @@
 import os
 from supabase import create_client, Client
 from datetime import datetime, timedelta
+import streamlit as st
 
-# Supabase credentials
+# Supabase credentials (anon key is public by design - secured by RLS)
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://dznzrxcvexmrqyctxogn.supabase.co")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6bnpyeGN2ZXhtcnF5Y3R4b2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0OTg0NDUsImV4cCI6MjA4NjA3NDQ0NX0.LHoa_2vp_89bAbl9MDC3sErq3l6hj0WDfR68ymUqK5A")
 
-_supabase_client = None
 
 def get_supabase() -> Client:
-    """Get or create Supabase client"""
-    global _supabase_client
-    if _supabase_client is None:
-        _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    return _supabase_client
+    """Get or create Supabase client (per-session to avoid auth leaks)"""
+    if 'supabase_client' not in st.session_state:
+        st.session_state.supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return st.session_state.supabase_client
+
 
 # ========================
 # AUTH FUNCTIONS
@@ -32,6 +32,7 @@ def sign_in_with_email(email: str, password: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+
 def sign_up_with_email(email: str, password: str):
     """Sign up with email/password"""
     try:
@@ -44,40 +45,46 @@ def sign_up_with_email(email: str, password: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+
 def sign_out():
-    """Sign out current user"""
+    """Sign out current user and clear session client"""
     try:
         supabase = get_supabase()
         supabase.auth.sign_out()
+        # Clear client so next login gets fresh auth state
+        if 'supabase_client' in st.session_state:
+            del st.session_state.supabase_client
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
 
 def get_current_user():
     """Get current logged in user"""
     try:
         supabase = get_supabase()
         return supabase.auth.get_user()
-    except:
+    except Exception:
         return None
+
 
 # ========================
 # FLASHCARD FUNCTIONS
 # ========================
 
 def save_flashcard_set(user_id: str, name: str, cards: list):
-    """Save a set of flashcards to database"""
+    """Save a set of flashcards to database. Returns DB card IDs."""
     try:
         supabase = get_supabase()
-        
+
         # Create set
         set_response = supabase.table("flashcard_sets").insert({
             "user_id": user_id,
             "name": name
         }).execute()
-        
+
         set_id = set_response.data[0]["id"]
-        
+
         # Insert cards
         cards_to_insert = [
             {
@@ -90,83 +97,105 @@ def save_flashcard_set(user_id: str, name: str, cards: list):
             }
             for card in cards
         ]
-        
-        supabase.table("flashcards").insert(cards_to_insert).execute()
-        
-        return {"success": True, "set_id": set_id}
+
+        cards_response = supabase.table("flashcards").insert(cards_to_insert).execute()
+
+        # Return database IDs so app can use them for study tracking
+        db_card_ids = [str(c["id"]) for c in cards_response.data]
+
+        return {"success": True, "set_id": set_id, "card_ids": db_card_ids}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "card_ids": []}
+
 
 def load_user_flashcards(user_id: str):
-    """Load all flashcards for a user"""
+    """Load all flashcards for a user (optimized: 2 queries instead of N+1)"""
     try:
         supabase = get_supabase()
-        
-        # Get user's sets
-        sets = supabase.table("flashcard_sets").select("*").eq("user_id", user_id).execute()
-        
-        all_cards = []
-        for card_set in sets.data:
-            cards = supabase.table("flashcards").select("*").eq("set_id", card_set["id"]).execute()
-            for card in cards.data:
-                all_cards.append({
-                    "id": card["id"],
-                    "set_id": card["set_id"],
-                    "klausimas": card["question"],
-                    "atsakymas": card["answer"],
-                    "difficulty": card["difficulty"],
-                    "next_review": card["next_review"],
-                    "times_reviewed": card["times_reviewed"]
-                })
-        
+
+        # Query 1: Get all user's set IDs
+        sets = supabase.table("flashcard_sets").select("id, name").eq("user_id", user_id).execute()
+
+        if not sets.data:
+            return {"success": True, "cards": []}
+
+        set_ids = [s["id"] for s in sets.data]
+
+        # Query 2: Get ALL cards across all sets in one query
+        cards = supabase.table("flashcards").select("*").in_("set_id", set_ids).execute()
+
+        all_cards = [
+            {
+                "id": str(card["id"]),
+                "set_id": card["set_id"],
+                "klausimas": card["question"],
+                "atsakymas": card["answer"],
+                "difficulty": card.get("difficulty", 3),
+                "next_review": card.get("next_review", datetime.now().isoformat()),
+                "times_reviewed": card.get("times_reviewed", 0)
+            }
+            for card in cards.data
+        ]
+
         return {"success": True, "cards": all_cards}
     except Exception as e:
         return {"success": False, "error": str(e), "cards": []}
 
+
 def update_card_progress(card_id: str, difficulty: int):
-    """Update card's spaced repetition progress"""
+    """Update card's spaced repetition progress (safe: separate read/write)"""
     try:
         supabase = get_supabase()
-        
-        # Calculate next review based on difficulty
+
+        # Read current state
+        current = supabase.table("flashcards").select("times_reviewed").eq("id", card_id).execute()
+
+        if not current.data:
+            return {"success": False, "error": "Card not found"}
+
+        times_reviewed = current.data[0].get("times_reviewed", 0) + 1
+
+        # Calculate next review
         intervals = {1: 1, 2: 1, 3: 3, 4: 7, 5: 14}
         days = intervals.get(difficulty, 3)
         next_review = (datetime.now() + timedelta(days=days)).isoformat()
-        
+
+        # Update
         supabase.table("flashcards").update({
             "difficulty": difficulty,
             "next_review": next_review,
-            "times_reviewed": supabase.table("flashcards").select("times_reviewed").eq("id", card_id).execute().data[0]["times_reviewed"] + 1
+            "times_reviewed": times_reviewed
         }).eq("id", card_id).execute()
-        
+
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
 
 def get_cards_for_review(user_id: str):
     """Get cards that need review today"""
     try:
         supabase = get_supabase()
         today = datetime.now().isoformat()
-        
-        # Get user's sets
+
+        # Get user's set IDs
         sets = supabase.table("flashcard_sets").select("id").eq("user_id", user_id).execute()
         set_ids = [s["id"] for s in sets.data]
-        
+
         if not set_ids:
             return {"success": True, "cards": []}
-        
+
         # Get cards due for review
         cards = supabase.table("flashcards").select("*").in_("set_id", set_ids).lte("next_review", today).execute()
-        
+
         return {
-            "success": True, 
+            "success": True,
             "cards": [
                 {
-                    "id": c["id"],
+                    "id": str(c["id"]),
                     "klausimas": c["question"],
                     "atsakymas": c["answer"],
-                    "difficulty": c["difficulty"]
+                    "difficulty": c.get("difficulty", 3)
                 }
                 for c in cards.data
             ]
@@ -174,10 +203,14 @@ def get_cards_for_review(user_id: str):
     except Exception as e:
         return {"success": False, "error": str(e), "cards": []}
 
+
 def delete_flashcard_set(set_id: str):
-    """Delete a flashcard set and all its cards"""
+    """Delete a flashcard set and all its cards (manual cascade)"""
     try:
         supabase = get_supabase()
+        # Delete cards first (safe even if DB has cascade)
+        supabase.table("flashcards").delete().eq("set_id", set_id).execute()
+        # Then delete the set
         supabase.table("flashcard_sets").delete().eq("id", set_id).execute()
         return {"success": True}
     except Exception as e:
