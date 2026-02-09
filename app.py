@@ -18,11 +18,20 @@ try:
     from supabase_client import (
         sign_in_with_email, sign_up_with_email, sign_out,
         save_flashcard_set, load_user_flashcards, update_card_progress,
-        get_cards_for_review, delete_flashcard_set
+        get_cards_for_review, delete_flashcard_set,
+        export_user_data, delete_user_account,
+        get_user_premium_status, set_user_premium_status
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False
+
+# Stripe integration
+try:
+    from stripe_integration import create_checkout_session, verify_stripe_session
+    STRIPE_AVAILABLE = True
+except ImportError:
+    STRIPE_AVAILABLE = False
 
 # YouTube transcript support
 try:
@@ -46,10 +55,19 @@ DAILY_LIMIT = 20
 SR_INTERVALS = {1: 1, 2: 1, 3: 3, 4: 7, 5: 14}  # difficulty -> days
 
 # Character limits
-MAX_PDF_CHARS = 50000        # Free: ~20 psl.
-MAX_INPUT_CHARS = 50000      # Free: ~20 psl.
-MAX_TRANSCRIPT_CHARS = 50000 # Free: ~20 min video
-MAX_PREMIUM_CHARS = 200000   # Premium: visa knyga
+MAX_PDF_CHARS_FREE = 50000
+MAX_INPUT_CHARS_FREE = 50000
+MAX_TRANSCRIPT_CHARS_FREE = 50000
+MAX_PREMIUM_CHARS = 200000   # 💎 Premium: viso skyriaus ar knygos lygis
+
+def get_limit(limit_type):
+    """Return limit based on premium status"""
+    is_premium = st.session_state.get('is_premium', False)
+    if limit_type == 'chars':
+        return MAX_PREMIUM_CHARS if is_premium else MAX_INPUT_CHARS_FREE
+    if limit_type == 'daily':
+        return 500 if is_premium else DAILY_LIMIT
+    return 0
 
 # Page config
 st.set_page_config(
@@ -165,6 +183,19 @@ if 'user' not in st.session_state:
     st.session_state.user = None
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = 'login'
+
+# Handle Stripe Redirect
+if STRIPE_AVAILABLE and 'session_id' in st.query_params:
+    session_id = st.query_params['session_id']
+    if verify_stripe_session(session_id):
+        if st.session_state.user and SUPABASE_AVAILABLE:
+            set_user_premium_status(st.session_state.user['id'], True)
+            st.session_state.is_premium = True
+            st.success("Sveikiname! Jūs dabar esate 💎 Premium narys! 🎉")
+            # Clear query params to avoid re-triggering
+            st.query_params.clear()
+        else:
+            st.warning("Apmokėjimas sėkmingas, bet prašome prisijungti, kad aktyvuotumėte Premium!")
 
 # ==========================
 # GEMINI API SETUP
@@ -402,7 +433,7 @@ UŽDUOTIS:
 Sukurk {num_cards} flashcard'ų iš šio teksto {language} kalba.
 
 TEKSTAS:
-{text[:MAX_INPUT_CHARS]}
+{text[:get_limit('chars')]}
 
 GRAŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
 [
@@ -568,6 +599,73 @@ with st.sidebar:
                     st.session_state.flashcards = []
                     st.session_state.study_cards = {}
                     st.rerun()
+
+            # BDAR: Data export + Account deletion
+            with st.expander("🔒 Mano duomenys (BDAR)"):
+                st.caption("Pagal ES Bendrąjį duomenų apsaugos reglamentą (BDAR) turite teisę:")
+
+                # Data export (Art. 20)
+                if st.button("📥 Eksportuoti mano duomenis", use_container_width=True):
+                    with st.spinner("Ruošiami duomenys..."):
+                        result = export_user_data(
+                            st.session_state.user['id'],
+                            st.session_state.user['email']
+                        )
+                        if result['success']:
+                            st.download_button(
+                                "⬇️ Atsisiųsti JSON",
+                                json.dumps(result['data'], ensure_ascii=False, indent=2, default=str),
+                                f"mano_duomenys_{datetime.now().strftime('%Y%m%d')}.json",
+                                "application/json"
+                            )
+                        else:
+                            st.error("Nepavyko eksportuoti duomenų")
+
+                st.divider()
+
+                # Account deletion (Art. 17)
+                st.markdown("**Ištrinti paskyrą**")
+                st.caption("Visi jūsų duomenys bus negrįžtamai ištrinti.")
+                delete_confirm = st.text_input(
+                    "Įveskite DELETE kad patvirtintumėte:",
+                    key="delete_confirm",
+                    placeholder="DELETE"
+                )
+                if st.button("🗑️ Ištrinti paskyrą visam laikui", type="primary", use_container_width=True):
+                    if delete_confirm == "DELETE":
+                        with st.spinner("Trinami duomenys..."):
+                            result = delete_user_account(st.session_state.user['id'])
+                            if result['success']:
+                                st.session_state.user = None
+                                st.session_state.is_premium = False
+                                st.session_state.flashcards = []
+                                st.session_state.study_cards = {}
+                                st.success("Paskyra ir visi duomenys ištrinti.")
+                                st.rerun()
+                            else:
+                                st.error("Klaida trinant paskyrą. Susisiekite su mumis.")
+                    else:
+                        st.warning("Įveskite DELETE kad patvirtintumėte")
+
+            st.divider()
+            
+            # Premium Upgrade Section
+            if not st.session_state.is_premium and STRIPE_AVAILABLE:
+                st.markdown("### 💎 Tapk Premium")
+                st.markdown("**€3.99/mėn**")
+                st.write("- ♾️ Neriboti flashcard'ai")
+                st.write("- 📄 Didesni failų limitai")
+                st.write("- ⚡ Prioritetinis AI greitis")
+                
+                if st.button("🚀 Upgrade", type="primary", use_container_width=True):
+                    checkout_url = create_checkout_session(st.session_state.user['email'])
+                    if checkout_url:
+                        # Use a clickable link if button doesn't work for redirect
+                        st.markdown(f'<a href="{checkout_url}" target="_self" style="text-decoration: none;"><button style="width:100%; height:40px; background-color:#ff4b4b; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">💳 Pereiti į apmokėjimą</button></a>', unsafe_allow_html=True)
+                    else:
+                        st.error("Nepavyko sukurti mokėjimo sesijos.")
+            elif st.session_state.is_premium:
+                st.success("✨ Jūs esate Premium narys")
         else:
             # Login/Signup forms
             st.write("---")
@@ -585,6 +683,10 @@ with st.sidebar:
                                 'id': str(result['user'].id),
                                 'email': result['user'].email
                             }
+                            # Check premium status
+                            if SUPABASE_AVAILABLE:
+                                st.session_state.is_premium = get_user_premium_status(st.session_state.user['id'])
+                                
                             # Load user's flashcards and study history
                             sync_flashcards_from_supabase(st.session_state.user['id'])
                             st.success("Prisijungta! ✅")
@@ -600,19 +702,24 @@ with st.sidebar:
                     else:
                         st.warning("Įveskite el. paštą ir slaptažodį")
             else:
+                gdpr_consent = st.checkbox(
+                    "Sutinku su [Privatumo politika](#privatumo-politika) ir duomenų tvarkymu (BDAR)",
+                    key="gdpr_consent"
+                )
                 if st.button("📝 Registruotis", use_container_width=True):
-                    if email and password:
-                        if len(password) < 6:
-                            st.warning("Slaptažodis per trumpas (min 6 simboliai)")
-                        else:
-                            result = sign_up_with_email(email, password)
-                            if result['success']:
-                                st.success("Registracija sėkminga! Patikrinkite el. paštą.")
-                            else:
-                                st.error(f"Klaida: {result.get('error', 'Nežinoma')}")
-                    else:
+                    if not gdpr_consent:
+                        st.warning("Privalote sutikti su privatumo politika")
+                    elif not email or not password:
                         st.warning("Įveskite el. paštą ir slaptažodį")
-            
+                    elif len(password) < 6:
+                        st.warning("Slaptažodis per trumpas (min 6 simboliai)")
+                    else:
+                        result = sign_up_with_email(email, password)
+                        if result['success']:
+                            st.success("Registracija sėkminga! Patikrinkite el. paštą.")
+                        else:
+                            st.error(f"Klaida: {result.get('error', 'Nežinoma')}")
+
             st.caption("💡 Prisijungę galėsite sinchronizuoti korteles tarp įrenginių")
     
     st.divider()
@@ -634,28 +741,67 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Jūsų limitas")
-    remaining = max(0, DAILY_LIMIT - st.session_state.flashcards_count)
-    progress = min(st.session_state.flashcards_count / DAILY_LIMIT, 1.0)
+    current_limit = get_limit('daily')
+    remaining = max(0, current_limit - st.session_state.flashcards_count)
+    progress = min(st.session_state.flashcards_count / current_limit, 1.0)
     st.progress(progress)
-    st.caption(f"{st.session_state.flashcards_count}/{DAILY_LIMIT} flashcard'ų šiandien")
+    st.caption(f"{st.session_state.flashcards_count}/{current_limit} flashcard'ų šiandien")
 
     if remaining == 0 and not st.session_state.is_premium:
-        st.warning("Pasiekėte dienos limitą!")
+        st.warning("Pasiekėte dienos limitą! 💎 Upgrade į Premium neribotam naudojimui.")
 
     st.divider()
     st.caption("Made with ❤️ for LT students")
     st.caption(f"Powered by {GEMINI_MODEL}")
 
-    with st.expander("Apie ir Privatumas"):
-        st.caption("""
-        **FlashCards AI v1.1**
+    with st.expander("Privatumo politika (BDAR)"):
+        st.markdown("""
+<a name="privatumo-politika"></a>
+**FlashCards AI — Privatumo politika**
+*Atnaujinta: 2025-02-07*
 
-        Šis įrankis naudoja dirbtinį intelektą medžiagai analizuoti.
+**1. Duomenų valdytojas**
+FlashCards AI, el. paštas: petrovic222@gmail.com
 
-        **Privatumas:**
-        Jūsų įkelti failai ir tekstai nėra saugomi mūsų serveriuose.
-        Jie siunčiami tik į Google Gemini API apdorojimui ir po to iškart ištrinami.
-        """)
+**2. Kokie duomenys renkami**
+- **Paskyros duomenys:** el. pašto adresas, užšifruotas slaptažodis
+- **Mokymosi duomenys:** jūsų sukurtos kortelės (klausimai/atsakymai), mokymosi progresas
+- **Laikini duomenys:** įkelti tekstai, PDF, nuotraukos (apdorojami ir iškart ištrinami)
+
+**3. Duomenų tvarkymo tikslai ir pagrindas**
+- Paskyros sukūrimas ir autentifikacija — *sutikimas (BDAR 6 str. 1 d. a)*
+- Kortelių saugojimas ir sinchronizavimas — *sutarties vykdymas (BDAR 6 str. 1 d. b)*
+- AI turinio generavimas — *sutarties vykdymas (BDAR 6 str. 1 d. b)*
+
+**4. Trečiosios šalys (duomenų tvarkytojai)**
+| Paslauga | Paskirtis | Vieta |
+|---|---|---|
+| **Supabase** (supabase.com) | Duomenų saugojimas, autentifikacija | EU/US |
+| **Google Gemini API** | AI turinio generavimas | US |
+| **Streamlit Cloud** | Programos talpinimas | US |
+
+Įkelti tekstai, PDF ir nuotraukos siunčiami į Google Gemini API tik apdorojimui — jie **nesaugomi** mūsų serveriuose.
+
+**5. Duomenų saugojimo terminas**
+- Paskyros duomenys: kol paskyra aktyvi arba kol paprašysite ištrinti
+- Kortelės: kol paskyra aktyvi arba kol ištrinsite
+- Laikini duomenys (tekstai, PDF, nuotraukos): ištrinami iškart po apdorojimo
+
+**6. Jūsų teisės pagal BDAR**
+- **Teisė susipažinti** (15 str.) — galite peržiūrėti savo duomenis
+- **Teisė ištaisyti** (16 str.) — galite redaguoti korteles
+- **Teisė ištrinti** (17 str.) — galite ištrinti paskyrą ir visus duomenis
+- **Teisė į duomenų perkeliamumą** (20 str.) — galite eksportuoti duomenis JSON formatu
+- **Teisė atšaukti sutikimą** — bet kada galite ištrinti paskyrą
+
+Šias teises galite įgyvendinti per programos sąsają (Paskyra → Mano duomenys) arba rašydami el. paštu.
+
+**7. Slapukai**
+Ši programa nenaudoja slapukų (cookies). Sesijos duomenys saugomi tik serverio atmintyje ir ištrinami uždarius naršyklę.
+
+**8. Skundai**
+Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.lrv.lt).
+        """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("Turite idėjų? [Susisiekite](mailto:petrovic222@gmail.com)")
@@ -688,7 +834,7 @@ with tab1:
             input_text = st.text_area(
                 "Įklijuokite tekstą:",
                 height=300,
-                max_chars=MAX_INPUT_CHARS,
+                max_chars=get_limit('chars'),
                 placeholder="Kopijuokite paskaitų konspektą, vadovėlio skyrių ar savo užrašus..."
             )
 
@@ -982,53 +1128,53 @@ with tab3:
         """, unsafe_allow_html=True)
 
         st.caption("Desktop: užvesk pelę | Mobile: bakstelėk kortelę")
-        
-        # TTS Audio buttons using HTML5 audio with base64
+
+        # TTS Audio - stored in session_state so it persists across reruns
         col_audio1, col_audio2 = st.columns(2)
         with col_audio1:
             if st.button("🔊 Klausyti klausimo", key="tts_q", use_container_width=True):
                 try:
                     from gtts import gTTS
-                    import base64
                     tts = gTTS(text=card['klausimas'], lang='lt')
                     audio_buffer = BytesIO()
                     tts.write_to_fp(audio_buffer)
-                    audio_buffer.seek(0)
-                    audio_base64 = base64.b64encode(audio_buffer.read()).decode()
-                    st.markdown(f'<audio autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
-                    st.success("🔊 Grojama!")
+                    st.session_state.tts_audio = audio_buffer.getvalue()
+                    st.session_state.tts_card_idx = current
                 except ImportError:
                     st.warning("Įdiekite gTTS: pip install gtts")
                 except Exception as e:
                     st.error(f"Audio klaida: {type(e).__name__}")
-        
+
         with col_audio2:
             if st.button("🔊 Klausyti atsakymo", key="tts_a", use_container_width=True):
                 try:
                     from gtts import gTTS
-                    import base64
                     tts = gTTS(text=card['atsakymas'], lang='lt')
                     audio_buffer = BytesIO()
                     tts.write_to_fp(audio_buffer)
-                    audio_buffer.seek(0)
-                    audio_base64 = base64.b64encode(audio_buffer.read()).decode()
-                    st.markdown(f'<audio autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
-                    st.success("🔊 Grojama!")
+                    st.session_state.tts_audio = audio_buffer.getvalue()
+                    st.session_state.tts_card_idx = current
                 except ImportError:
                     st.warning("Įdiekite gTTS: pip install gtts")
                 except Exception as e:
                     st.error(f"Audio klaida: {type(e).__name__}")
+
+        # Persistent audio player - stays visible until card changes
+        if 'tts_audio' in st.session_state and st.session_state.get('tts_card_idx') == current:
+            st.audio(st.session_state.tts_audio, format='audio/mp3')
 
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col1:
             if st.button("⬅️ Atgal", disabled=current == 0):
                 st.session_state.current_card -= 1
+                st.session_state.pop('tts_audio', None)
                 st.rerun()
 
         with col3:
             if st.button("Pirmyn ➡️", disabled=current == total - 1):
                 st.session_state.current_card += 1
+                st.session_state.pop('tts_audio', None)
                 st.rerun()
 
         st.divider()

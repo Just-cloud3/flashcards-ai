@@ -17,11 +17,18 @@ import stripe
 import os
 
 # Stripe configuration
+STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-def create_checkout_session():
+def create_checkout_session(customer_email=None):
     """Create Stripe checkout session for Premium subscription"""
+    if not stripe.api_key:
+        return None
+        
     try:
+        # Base URL for redirct
+        base_url = "https://flashcards-ai-alkzzpbrvujame5y86dxzg.streamlit.app"
+        
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[
@@ -30,25 +37,35 @@ def create_checkout_session():
                         'currency': 'eur',
                         'product_data': {
                             'name': 'FlashCards AI Premium',
-                            'description': 'Neriboti flashcard\'ai + Google Vision OCR',
+                            'description': 'Neriboti flashcard\'ai + Didesni failų limitai',
                         },
-                        'unit_amount': 399,  # €3.99 = 399 cents
-                        'recurring': {
-                            'interval': 'month',
-                        },
+                        'unit_amount': 399,  # €3.99
+                        'recurring': {'interval': 'month'},
                     },
                     'quantity': 1,
                 },
             ],
             mode='subscription',
-            success_url='https://your-app.streamlit.app/?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url='https://your-app.streamlit.app/',
-            customer_email=None,  # Paprašyk email iš vartotojo
+            success_url=f'{base_url}/?session_id={{CHECKOUT_SESSION_ID}}',
+            cancel_url=f'{base_url}/',
+            customer_email=customer_email,
         )
         return checkout_session.url
     except Exception as e:
-        print(f"Stripe error: {e}")
+        print(f"Stripe Checkout Error: {e}")
         return None
+
+def verify_stripe_session(session_id):
+    """Verify if a Stripe session was completed successfully"""
+    if not stripe.api_key or not session_id:
+        return False
+        
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        return session.payment_status == "paid"
+    except Exception as e:
+        print(f"Stripe Verification Error: {e}")
+        return False
 
 # ========================================
 # PRIDĖK Į SIDEBAR (app.py)

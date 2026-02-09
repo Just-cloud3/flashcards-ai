@@ -215,3 +215,93 @@ def delete_flashcard_set(set_id: str):
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
+# ========================
+# PREMIUM / USER PROFILE
+# ========================
+
+def get_user_premium_status(user_id: str):
+    """Check if user has premium status"""
+    try:
+        supabase = get_supabase()
+        # We'll use a 'profiles' table for this
+        result = supabase.table("profiles").select("is_premium").eq("id", user_id).execute()
+        if result.data:
+            return result.data[0].get("is_premium", False)
+        
+        # If no profile, create one
+        supabase.table("profiles").insert({"id": user_id, "is_premium": False}).execute()
+        return False
+    except Exception as e:
+        print(f"Supabase Profile Error: {e}")
+        return False
+
+def set_user_premium_status(user_id: str, status: bool):
+    """Update user's premium status"""
+    try:
+        supabase = get_supabase()
+        supabase.table("profiles").upsert({"id": user_id, "is_premium": status}).execute()
+        return True
+    except Exception as e:
+        print(f"Supabase Profile Update Error: {e}")
+        return False
+
+
+# ========================
+# GDPR / BDAR FUNCTIONS
+# ========================
+
+def export_user_data(user_id: str, email: str):
+    """BDAR Art. 20 - Export all user's personal data as JSON"""
+    try:
+        supabase = get_supabase()
+
+        # Get all sets
+        sets = supabase.table("flashcard_sets").select("*").eq("user_id", user_id).execute()
+        set_ids = [s["id"] for s in sets.data] if sets.data else []
+
+        # Get all cards
+        all_cards = []
+        if set_ids:
+            cards = supabase.table("flashcards").select("*").in_("set_id", set_ids).execute()
+            all_cards = cards.data if cards.data else []
+
+        return {
+            "success": True,
+            "data": {
+                "vartotojas": {
+                    "id": user_id,
+                    "el_pastas": email,
+                    "eksporto_data": datetime.now().isoformat()
+                },
+                "korteliu_rinkiniai": sets.data if sets.data else [],
+                "korteles": all_cards
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def delete_user_account(user_id: str):
+    """BDAR Art. 17 - Delete all user data (right to be forgotten)"""
+    try:
+        supabase = get_supabase()
+
+        # 1. Get all user's sets
+        sets = supabase.table("flashcard_sets").select("id").eq("user_id", user_id).execute()
+        set_ids = [s["id"] for s in sets.data] if sets.data else []
+
+        # 2. Delete all cards from all sets
+        if set_ids:
+            supabase.table("flashcards").delete().in_("set_id", set_ids).execute()
+
+        # 3. Delete all sets
+        supabase.table("flashcard_sets").delete().eq("user_id", user_id).execute()
+
+        # 4. Sign out (clears auth session)
+        supabase.auth.sign_out()
+        if 'supabase_client' in st.session_state:
+            del st.session_state.supabase_client
+
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
