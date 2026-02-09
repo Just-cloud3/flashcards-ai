@@ -670,12 +670,17 @@ with st.sidebar:
                 st.write("- Didesni failų limitai (200k simbolių)")
                 st.write("- Prioritetinis AI greitis")
 
-                if st.button("Upgrade", type="primary", use_container_width=True):
-                    checkout_url = create_checkout_session(st.session_state.user['email'])
-                    if checkout_url:
-                        st.markdown(f'<a href="{checkout_url}" target="_self" style="text-decoration:none;"><button style="width:100%;height:40px;background:#ff4b4b;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:bold;">Pereiti į apmokėjimą</button></a>', unsafe_allow_html=True)
+                if st.button("🚀 Upgrade", type="primary", use_container_width=True):
+                    result = create_checkout_session(st.session_state.user['email'])
+                    if result.get('url'):
+                        st.session_state.checkout_url = result['url']
                     else:
-                        st.error("Nepavyko sukurti mokėjimo sesijos.")
+                        st.error(f"Klaida: {result.get('error', 'Nepavyko sukurti sesijos')}")
+
+                if 'checkout_url' in st.session_state:
+                    st.info("Apmokėjimo sesija sukurta!")
+                    st.link_button("💳 Pereiti į Stripe apmokėjimą", st.session_state.checkout_url, use_container_width=True)
+                    st.caption("Apmokėję būsite grąžinti atgal.")
 
             elif st.session_state.is_premium:
                 st.success("Premium narys")
