@@ -79,20 +79,21 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for flip cards (mobile-friendly with onclick JS)
+# Custom CSS — mobile-first responsive design
 st.markdown("""
 <style>
+/* ===== FLIP CARDS ===== */
 .flip-card {
     background-color: transparent;
     width: 100%;
-    min-height: 250px;
+    min-height: 200px;
     perspective: 1000px;
-    margin: 20px 0;
+    margin: 16px 0;
 }
 .flip-card-inner {
     position: relative;
     width: 100%;
-    min-height: 250px;
+    min-height: 200px;
     text-align: center;
     transition: transform 0.6s;
     transform-style: preserve-3d;
@@ -109,7 +110,7 @@ st.markdown("""
 .flip-card-front, .flip-card-back {
     position: absolute;
     width: 100%;
-    min-height: 250px;
+    min-height: 200px;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     border-radius: 15px;
@@ -117,7 +118,10 @@ st.markdown("""
     align-items: center;
     justify-content: center;
     padding: 20px;
-    font-size: 1.2em;
+    font-size: 1.1em;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 .flip-card-front {
     background: linear-gradient(135deg, #4a5fd5 0%, #5e3a8a 100%);
@@ -127,6 +131,117 @@ st.markdown("""
     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     color: white;
     transform: rotateY(180deg);
+}
+
+/* ===== STUDY CARDS (Mokymasis tab) ===== */
+.study-card {
+    padding: 24px 20px;
+    border-radius: 15px;
+    color: white;
+    margin: 12px 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+}
+.study-card h3 {
+    margin: 0;
+    font-size: 1.2em;
+    line-height: 1.4;
+}
+.study-card-q { background: linear-gradient(135deg, #667eea, #764ba2); }
+.study-card-a { background: linear-gradient(135deg, #11998e, #38ef7d); }
+
+/* ===== MOBILE OPTIMIZATIONS ===== */
+@media (max-width: 768px) {
+    /* Bigger touch targets */
+    .stButton > button {
+        min-height: 48px !important;
+        font-size: 1rem !important;
+        padding: 10px 16px !important;
+    }
+
+    /* Tabs: scrollable, bigger touch area */
+    .stTabs [data-baseweb="tab"] {
+        padding: 12px 8px !important;
+        font-size: 0.85rem !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0 !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Wider inputs */
+    .stTextInput input, .stTextArea textarea {
+        font-size: 16px !important; /* prevents iOS zoom on focus */
+    }
+
+    /* Smaller flip cards on mobile */
+    .flip-card, .flip-card-inner, .flip-card-front, .flip-card-back {
+        min-height: 180px;
+    }
+    .flip-card-front, .flip-card-back {
+        padding: 16px;
+        font-size: 1em;
+    }
+
+    /* Study cards responsive */
+    .study-card {
+        padding: 20px 16px;
+    }
+    .study-card h3 {
+        font-size: 1.05em;
+    }
+
+    /* Metrics compact */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.8rem !important;
+    }
+
+    /* File uploader - bigger drag area */
+    [data-testid="stFileUploader"] {
+        min-height: 100px;
+    }
+    [data-testid="stFileUploader"] section {
+        padding: 20px !important;
+    }
+
+    /* Radio buttons (source type) - wrap nicely */
+    .stRadio > div {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+    }
+    .stRadio > div > label {
+        padding: 8px 12px !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Header text */
+    h1 { font-size: 1.6rem !important; }
+    h2 { font-size: 1.3rem !important; }
+
+    /* Expander touch target */
+    .streamlit-expanderHeader {
+        min-height: 44px !important;
+        font-size: 0.95rem !important;
+    }
+}
+
+/* Extra small screens (iPhone SE, etc) */
+@media (max-width: 380px) {
+    .flip-card, .flip-card-inner, .flip-card-front, .flip-card-back {
+        min-height: 160px;
+    }
+    .flip-card-front, .flip-card-back {
+        padding: 12px;
+        font-size: 0.9em;
+    }
+    .study-card { padding: 16px 12px; }
+    .study-card h3 { font-size: 1em; }
+    h1 { font-size: 1.4rem !important; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -148,8 +263,8 @@ DARK_MODE_CSS = """
     .streamlit-expanderHeader { background-color: #21262d !important; color: #c9d1d9 !important; }
     [data-testid="stMetricValue"] { color: #58a6ff !important; }
     .stAlert { background-color: #21262d !important; }
-    .flip-card-front { background: linear-gradient(135deg, #1a1f35 0%, #2d1f3d 100%) !important; }
-    .flip-card-back { background: linear-gradient(135deg, #0d2818 0%, #1a3d2e 100%) !important; }
+    .flip-card-front, .study-card-q { background: linear-gradient(135deg, #1a1f35 0%, #2d1f3d 100%) !important; }
+    .flip-card-back, .study-card-a { background: linear-gradient(135deg, #0d2818 0%, #1a3d2e 100%) !important; }
     .stTabs [data-baseweb="tab-list"] { background-color: #161b22 !important; }
     .stTabs [data-baseweb="tab"] { color: #8b949e !important; }
     .stTabs [aria-selected="true"] { color: #f0f6fc !important; }
@@ -204,12 +319,12 @@ if STRIPE_AVAILABLE and 'session_id' in st.query_params:
                 st.session_state.is_premium = True
                 st.session_state.subscription_id = payment.get('subscription_id')
                 st.session_state.processed_session_id = session_id
-                st.success("Sveikiname! Jūs dabar esate Premium narys!")
+                st.success("Sveikiname! Dabar esate Premium narys!")
                 st.query_params.clear()
             else:
                 # Save payment info so it can be activated after login
                 st.session_state.pending_payment = payment
-                st.warning("Apmokėjimas sėkmingas! Prisijunkite, kad aktyvuotumėte Premium.")
+                st.warning("Apmokėjimas sėkmingas! Prisijunkite, kad Premium būtų aktyvuotas.")
     else:
         st.query_params.clear()
 
@@ -261,7 +376,7 @@ def extract_video_id(youtube_url):
 def get_youtube_transcript(video_id, languages=['lt', 'en']):
     """Fetch transcript from YouTube video (v1.2 API)"""
     if not YOUTUBE_AVAILABLE:
-        return {'success': False, 'error': 'YouTube biblioteka neįdiegta'}
+        return {'success': False, 'error': 'YouTube funkcija šiuo metu neprieinama'}
 
     try:
         api = YouTubeTranscriptApi()
@@ -307,10 +422,10 @@ def get_youtube_transcript(video_id, languages=['lt', 'en']):
     except (IpBlocked, RequestBlocked):
         return {
             'success': False,
-            'error': 'YouTube blokuoja serverį. Patarimas: atidarykite video → CC → nukopijuokite subtitrus → įklijuokite į „Tekstas" skiltį.'
+            'error': "YouTube subtitrai neprieinami iš serverio. Patarimas: atidarykite video, įjunkite subtitrus (CC), nukopijuokite tekstą ir įklijuokite į Tekstas skiltį."
         }
-    except Exception as e:
-        return {'success': False, 'error': f'YouTube klaida: {type(e).__name__}'}
+    except Exception:
+        return {'success': False, 'error': 'Nepavyko gauti subtitrų. Pabandykite kitą video.'}
 
 def format_duration(seconds):
     """Convert seconds to MM:SS format"""
@@ -425,7 +540,7 @@ def parse_flashcards_json(content):
 def generate_flashcards_from_text(text, num_cards=10, language="lietuvių", api_key=None):
     """Generate flashcards using Gemini API"""
     if not api_key:
-        st.error("Įveskite Gemini API key!")
+        st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
         return []
 
     try:
@@ -464,21 +579,21 @@ GRAŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
         )
 
         if not response.text:
-            st.error("AI negrąžino atsakymo. Bandykite sutrumpinti tekstą.")
+            st.error("Nepavyko apdoroti teksto. Pabandykite su trumpesniu tekstu.")
             return []
 
         return parse_flashcards_json(response.text)
 
     except Exception as e:
-        error_type = type(e).__name__
-        if "quota" in str(e).lower() or "429" in str(e):
-            st.error("API kvotos limitas pasiektas. Palaukite kelias minutes.")
-        elif "timeout" in str(e).lower():
-            st.error("API užklausa užtruko per ilgai. Bandykite trumpesnį tekstą.")
-        elif "invalid" in str(e).lower() and "key" in str(e).lower():
-            st.error("Neteisingas API raktas. Patikrinkite ir bandykite dar kartą.")
+        err = str(e).lower()
+        if "quota" in err or "429" in err:
+            st.error("Serveris šiuo metu užimtas. Palaukite minutę ir bandykite dar kartą.")
+        elif "timeout" in err:
+            st.error("Užtruko per ilgai. Pabandykite su trumpesniu tekstu.")
+        elif "invalid" in err and "key" in err:
+            st.error("Neteisingas API raktas. Patikrinkite nustatymuose ir bandykite dar kartą.")
         else:
-            st.error(f"Klaida generuojant flashcard'us: {error_type}")
+            st.error("Nepavyko sukurti kortelių. Bandykite dar kartą arba su kitu tekstu.")
         return []
 
 def save_generated_cards(cards):
@@ -488,7 +603,7 @@ def save_generated_cards(cards):
 
         # Save to Supabase if logged in
         if st.session_state.user and SUPABASE_AVAILABLE:
-            with st.spinner("Sinchronizuojama su paskyra..."):
+            with st.spinner("Išsaugoma..."):
                 set_name = f"Rinkinys {datetime.now().strftime('%m-%d %H:%M')}"
                 result = save_flashcard_set(st.session_state.user['id'], set_name, cards)
                 if result.get('success'):
@@ -518,7 +633,7 @@ def extract_text_from_pdf(pdf_file):
 
         clean_text = text.strip()
         if len(clean_text) < 50 and len(pdf_reader.pages) > 0:
-            st.warning("Šis PDF atrodo skanuotas (be teksto sluoksnio). Naudokite Nuotraukos režimą.")
+            st.warning("Atrodo, kad šis PDF yra skanuotas vaizdas. Pabandykite naudoti Nuotraukos režimą.")
             return ""
 
         if len(text) > MAX_PDF_CHARS_FREE:
@@ -527,11 +642,11 @@ def extract_text_from_pdf(pdf_file):
             if last_period > MAX_PDF_CHARS_FREE * 0.8:
                 truncated = truncated[:last_period + 1]
             text = truncated
-            st.warning(f"PDF tekstas apribotas iki ~{MAX_PDF_CHARS_FREE:,} simbolių")
+            st.info("Nuskaitytas maksimalus teksto kiekis iš PDF.")
 
         return text
-    except Exception as e:
-        st.error(f"Klaida skaitant PDF: {type(e).__name__}")
+    except Exception:
+        st.error("Nepavyko nuskaityti PDF. Patikrinkite, ar failas neapribotas slaptažodžiu.")
         return ""
 
 # ==========================
@@ -573,12 +688,12 @@ def export_to_txt(flashcards):
 # Show success message from previous generation (survives st.rerun)
 if st.session_state.generation_success > 0:
     st.balloons()
-    st.success(f"Sukurta {st.session_state.generation_success} flashcard'ų!")
+    st.success(f"Paruošta {st.session_state.generation_success} kortelių! Galite pradėti mokytis.")
     st.session_state.generation_success = 0
 
 # Header
 st.title("📚 FlashCards AI")
-st.markdown("**Automatiškai sukurk flashcard'us iš teksto ar PDF** | Powered by Gemini 2.0 Flash")
+st.markdown("**Mokykis greičiau ir protingiau** — sukurk korteles iš bet kokios medžiagos per kelias sekundes")
 
 # Sidebar
 with st.sidebar:
@@ -597,17 +712,17 @@ with st.sidebar:
         
         if st.session_state.user:
             # User is logged in
-            st.success(f"✅ {st.session_state.user['email']}")
-            st.caption("Kortelės sinchronizuojamos!")
+            st.success(f"Sveiki, {st.session_state.user['email']}!")
+            st.caption("Jūsų kortelės saugomos automatiškai")
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("🔄 Sync", use_container_width=True):
+                if st.button("🔄 Atnaujinti", use_container_width=True):
                     if sync_flashcards_from_supabase(st.session_state.user['id']):
-                        st.success("Sinchronizuota!")
+                        st.success("Atnaujinta!")
                         st.rerun()
                     else:
-                        st.error("Nepavyko sinchronizuoti")
+                        st.error("Nepavyko atnaujinti. Bandykite dar kartą.")
             with col2:
                 if st.button("🚪 Atsijungti", use_container_width=True):
                     sign_out()
@@ -617,8 +732,8 @@ with st.sidebar:
                     st.rerun()
 
             # BDAR: Data export + Account deletion
-            with st.expander("🔒 Mano duomenys (BDAR)"):
-                st.caption("Pagal ES Bendrąjį duomenų apsaugos reglamentą (BDAR) turite teisę:")
+            with st.expander("🔒 Mano duomenys ir privatumas"):
+                st.caption("Jūs turite visišką kontrolę savo duomenims:")
 
                 # Data export (Art. 20) - direct download button
                 export_result = export_user_data(
@@ -638,7 +753,7 @@ with st.sidebar:
 
                 # Account deletion (Art. 17)
                 st.markdown("**Ištrinti paskyrą**")
-                st.caption("Visi jūsų duomenys bus negrįžtamai ištrinti.")
+                st.caption("Tai negrįžtamas veiksmas — visos kortelės ir paskyra bus ištrinti.")
                 delete_confirm = st.text_input(
                     "Įveskite DELETE kad patvirtintumėte:",
                     key="delete_confirm",
@@ -656,7 +771,7 @@ with st.sidebar:
                                 st.success("Paskyra ir visi duomenys ištrinti.")
                                 st.rerun()
                             else:
-                                st.error("Klaida trinant paskyrą. Susisiekite su mumis.")
+                                st.error("Kažkas nepavyko. Parašykite mums ir padėsime.")
                     else:
                         st.warning("Įveskite DELETE kad patvirtintumėte")
 
@@ -664,26 +779,26 @@ with st.sidebar:
             
             # Premium Section
             if not st.session_state.is_premium and STRIPE_AVAILABLE:
-                st.markdown("### 💎 Tapk Premium")
+                st.markdown("### 💎 Premium planas")
                 st.markdown("**€3.99/mėn**")
-                st.write("- Neriboti flashcard'ai")
-                st.write("- Didesni failų limitai (200k simbolių)")
-                st.write("- Prioritetinis AI greitis")
+                st.write("- Neriboti kortelių kūrimai")
+                st.write("- Ilgesni tekstai ir dideli failai")
+                st.write("- Greitesnis apdorojimas")
 
-                if st.button("🚀 Upgrade", type="primary", use_container_width=True):
+                if st.button("💎 Tapti Premium", type="primary", use_container_width=True):
                     result = create_checkout_session(st.session_state.user['email'])
                     if result and isinstance(result, dict) and result.get('url'):
                         st.session_state.checkout_url = result['url']
                     else:
-                        st.error(f"Klaida: {result.get('error', 'Nepavyko sukurti sesijos')}")
+                        st.error("Nepavyko prisijungti prie mokėjimo sistemos. Bandykite vėliau.")
 
                 if 'checkout_url' in st.session_state:
-                    st.info("Apmokėjimo sesija sukurta!")
-                    st.link_button("💳 Pereiti į Stripe apmokėjimą", st.session_state.checkout_url, use_container_width=True)
-                    st.caption("Apmokėję būsite grąžinti atgal.")
+                    st.info("Viskas paruošta!")
+                    st.link_button("💳 Pereiti prie apmokėjimo", st.session_state.checkout_url, use_container_width=True)
+                    st.caption("Apmokėjus būsite automatiškai grąžinti atgal.")
 
             elif st.session_state.is_premium:
-                st.success("Premium narys")
+                st.success("💎 Premium narys")
                 # Subscription management
                 sub_id = st.session_state.get('subscription_id')
                 if sub_id and STRIPE_AVAILABLE:
@@ -692,17 +807,16 @@ with st.sidebar:
                         if sub_info.get('cancel_at_period_end'):
                             end_ts = sub_info.get('current_period_end', 0)
                             end_date = datetime.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
-                            st.caption(f"Prenumerata atšaukta. Galioja iki {end_date}")
+                            st.caption(f"Premium galios iki {end_date}")
                         else:
                             if st.button("Atšaukti prenumeratą", use_container_width=True):
                                 result = cancel_subscription(sub_id)
                                 if result.get('success'):
-                                    from datetime import datetime as dt
                                     end_ts = result.get('cancel_at', 0)
-                                    end_date = dt.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
+                                    end_date = datetime.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
                                     st.info(f"Prenumerata atšaukta. Premium galios iki {end_date}")
                                 else:
-                                    st.error("Nepavyko atšaukti. Susisiekite su mumis.")
+                                    st.error("Kažkas nepavyko. Parašykite mums ir padėsime.")
         else:
             # Login/Signup forms
             st.write("---")
@@ -740,16 +854,16 @@ with st.sidebar:
 
                             # Load user's flashcards and study history
                             sync_flashcards_from_supabase(st.session_state.user['id'])
-                            st.success("Prisijungta! ✅")
+                            st.success("Sveiki sugrįžę!")
                             st.rerun()
                         else:
                             err = result.get('error', '').lower()
                             if "email not confirmed" in err:
-                                st.error("📧 El. paštas dar nepatvirtintas. Patikrinkite savo pašto dėžutę (ir Spam)!")
+                                st.error("El. paštas dar nepatvirtintas. Patikrinkite savo pašto dėžutę (ir Spam aplanką).")
                             elif "invalid login credentials" in err:
-                                st.error("❌ Neteisingas el. paštas arba slaptažodis.")
+                                st.error("Neteisingas el. paštas arba slaptažodis. Bandykite dar kartą.")
                             else:
-                                st.error(f"❌ Klaida: {result.get('error', 'Neteisingi duomenys')}")
+                                st.error("Prisijungti nepavyko. Patikrinkite duomenis ir bandykite dar kartą.")
                     else:
                         st.warning("Įveskite el. paštą ir slaptažodį")
             else:
@@ -767,43 +881,42 @@ with st.sidebar:
                     else:
                         result = sign_up_with_email(email, password)
                         if result['success']:
-                            st.success("Registracija sėkminga! Patikrinkite el. paštą.")
+                            st.success("Registracija sėkminga! Patikrinkite el. paštą ir patvirtinkite paskyrą.")
                         else:
-                            st.error(f"Klaida: {result.get('error', 'Nežinoma')}")
+                            st.error("Registracija nepavyko. Galbūt šis el. paštas jau užregistruotas?")
 
-            st.caption("💡 Prisijungę galėsite sinchronizuoti korteles tarp įrenginių")
+            st.caption("💡 Prisijungę kortelės bus pasiekiamos iš bet kurio įrenginio")
     
     st.divider()
     st.header("Nustatymai")
 
-    st.markdown("""**Kaip gauti Gemini API raktą:**
+    st.markdown("""**Kaip pradėti naudoti?**
 1. Eik į [aistudio.google.com](https://aistudio.google.com/apikey)
 2. Prisijunk su Google paskyra
-3. Sukurk naują API key
-4. Įklijuok čia""")
+3. Paspausk 'Create API key'
+4. Nukopijuok ir įklijuok čia""")
 
     api_key = st.text_input(
-        "Gemini API Key",
+        "API raktas",
         value=os.getenv("GEMINI_API_KEY", ""),
         type="password",
-        placeholder="AIza..."
+        placeholder="Įklijuokite raktą čia..."
     )
 
     st.divider()
 
-    st.subheader("Jūsų limitas")
+    st.subheader("Šiandienos progresas")
     current_limit = get_limit('daily')
     remaining = max(0, current_limit - st.session_state.flashcards_count)
     progress = min(st.session_state.flashcards_count / current_limit, 1.0)
     st.progress(progress)
-    st.caption(f"{st.session_state.flashcards_count}/{current_limit} flashcard'ų šiandien")
+    st.caption(f"Sukurta {st.session_state.flashcards_count} iš {current_limit} kortelių")
 
     if remaining == 0 and not st.session_state.is_premium:
-        st.warning("Pasiekėte dienos limitą! 💎 Upgrade į Premium neribotam naudojimui.")
+        st.warning("Dienos limitas pasiektas. Tapkite Premium nariu ir kurkite neribotai!")
 
     st.divider()
-    st.caption("Made with ❤️ for LT students")
-    st.caption(f"Powered by {GEMINI_MODEL}")
+    st.caption("Sukurta su ❤️ Lietuvos studentams")
 
     with st.expander("Privatumo politika (BDAR)"):
         st.markdown("""
@@ -855,10 +968,10 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
         """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("Turite idėjų? [Susisiekite](mailto:petrovic222@gmail.com)")
+    st.markdown("Turite klausimų ar idėjų? [Parašykite mums](mailto:petrovic222@gmail.com)")
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Šaltinis", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Eksportas", "💬 AI Tutor"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Naujos kortelės", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Atsisiuntimas", "💬 Paklausti AI"])
 
 can_generate = st.session_state.flashcards_count < get_limit('daily')
 
@@ -866,7 +979,7 @@ can_generate = st.session_state.flashcards_count < get_limit('daily')
 # TAB 1: ŠALTINIS
 # ==================
 with tab1:
-    st.header("Iš ko mokysimės šiandien?")
+    st.header("Iš ko norite sukurti korteles?")
 
     source_type = st.radio(
         "Pasirinkite medžiagos tipą:",
@@ -879,25 +992,25 @@ with tab1:
 
     # ---- TEKSTAS ----
     if source_type == "✍️ Tekstas":
-        col1, col2 = st.columns([3, 1])
+        input_text = st.text_area(
+            "Įklijuokite tekstą:",
+            height=250,
+            max_chars=get_limit('chars'),
+            placeholder="Kopijuokite paskaitų konspektą, vadovėlio skyrių ar savo užrašus..."
+        )
 
-        with col1:
-            input_text = st.text_area(
-                "Įklijuokite tekstą:",
-                height=300,
-                max_chars=get_limit('chars'),
-                placeholder="Kopijuokite paskaitų konspektą, vadovėlio skyrių ar savo užrašus..."
-            )
-
-        with col2:
-            num_cards = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_text")
+        col_opt1, col_opt2, col_opt3 = st.columns([2, 2, 3])
+        with col_opt1:
+            num_cards = st.slider("Kiekis:", 5, 20, 10, key="slider_text")
+        with col_opt2:
             language = st.selectbox("Kalba:", ["lietuvių", "anglų", "abi"])
-
-            if st.button("🎯 Generuoti", type="primary", disabled=not input_text or not can_generate):
+        with col_opt3:
+            st.write("")  # spacing
+            if st.button("🎯 Generuoti korteles", type="primary", disabled=not input_text or not can_generate, use_container_width=True):
                 if not api_key:
-                    st.error("Įveskite Gemini API key!")
+                    st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
                 else:
-                    with st.spinner("Kuriami flashcard'ai..."):
+                    with st.spinner("Kuriamos kortelės..."):
                         cards = generate_flashcards_from_text(input_text, num_cards, language, api_key)
                         save_generated_cards(cards)
 
@@ -914,23 +1027,23 @@ with tab1:
                 pdf_text = extract_text_from_pdf(uploaded_pdf)
 
             if pdf_text:
-                st.info(f"Nuskaityta {len(pdf_text):,} simbolių")
+                st.info(f"PDF nuskaitytas sėkmingai ({len(pdf_text):,} simbolių)")
                 st.text_area("Peržiūra:", pdf_text[:500] + ("..." if len(pdf_text) > 500 else ""), height=150, disabled=True)
 
                 num_cards_pdf = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_pdf")
 
-                if st.button("🎯 Generuoti iš PDF", type="primary", disabled=not can_generate):
+                if st.button("🎯 Generuoti iš PDF", type="primary", disabled=not can_generate, use_container_width=True):
                     if not api_key:
-                        st.error("Įveskite Gemini API key!")
+                        st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
                     else:
-                        with st.spinner("Kuriami flashcard'ai iš PDF..."):
+                        with st.spinner("Kuriamos kortelės iš PDF..."):
                             cards = generate_flashcards_from_text(pdf_text, num_cards_pdf, "lietuvių", api_key)
                             save_generated_cards(cards)
 
     # ---- YOUTUBE ----
     elif source_type == "🎥 YouTube Video":
         if not YOUTUBE_AVAILABLE:
-            st.warning("YouTube funkcija neaktyvi. Įdiekite: `pip install youtube-transcript-api`")
+            st.warning("YouTube funkcija šiuo metu neprieinama.")
         else:
             youtube_url = st.text_input(
                 "YouTube nuoroda:",
@@ -949,15 +1062,15 @@ with tab1:
                 if not video_id:
                     st.error("Neteisinga YouTube nuoroda")
                 else:
-                    st.image(f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg", width=400)
+                    st.image(f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg", use_container_width=True)
 
-                    if st.button("🎬 Ekstraktuoti tekstą", type="primary"):
-                        with st.spinner("Gaunami subtitrai..."):
+                    if st.button("🎬 Gauti subtitrus", type="primary", use_container_width=True):
+                        with st.spinner("Skaitomi subtitrai..."):
                             result = get_youtube_transcript(video_id)
 
                         if result['success']:
                             st.session_state.youtube_transcript = result['text']
-                            st.success(f"Ekstraktuota! Kalba: {result['language']}, Trukmė: {format_duration(result['duration'])}")
+                            st.success(f"Subtitrai nuskaityti! Kalba: {result['language']}, trukmė: {format_duration(result['duration'])}")
                         else:
                             st.error(result['error'])
 
@@ -969,17 +1082,17 @@ with tab1:
 
                 num_cards_yt = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_yt")
 
-                if st.button("🎯 Generuoti iš YouTube", type="primary", disabled=not can_generate):
+                if st.button("🎯 Generuoti iš YouTube", type="primary", disabled=not can_generate, use_container_width=True):
                     if not api_key:
-                        st.error("Įveskite Gemini API key!")
+                        st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
                     else:
-                        with st.spinner("Kuriami flashcard'ai..."):
+                        with st.spinner("Kuriamos kortelės..."):
                             cards = generate_flashcards_from_text(transcript, num_cards_yt, "lietuvių", api_key)
                             save_generated_cards(cards)
 
     # ---- NUOTRAUKA ----
     elif source_type == "📸 Nuotrauka":
-        st.info("Nufotografuokite užrašus, lentą ar skaidrę ir įkelkite nuotrauką!")
+        st.info("Nufotografuokite savo užrašus, lentą ar skaidrę — AI viską atpažins!")
 
         uploaded_image = st.file_uploader(
             "Įkelkite nuotrauką:",
@@ -989,15 +1102,15 @@ with tab1:
 
         if uploaded_image:
             image = Image.open(uploaded_image)
-            st.image(image, caption="Jūsų nuotrauka", width=400)
+            st.image(image, caption="Įkelta nuotrauka", use_container_width=True)
 
             num_cards_img = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_img")
 
-            if st.button("🎯 Generuoti iš nuotraukos", type="primary", disabled=not can_generate):
+            if st.button("🎯 Generuoti iš nuotraukos", type="primary", disabled=not can_generate, use_container_width=True):
                 if not api_key:
-                    st.error("Įveskite Gemini API key!")
+                    st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
                 else:
-                    with st.spinner("Gemini analizuoja nuotrauką..."):
+                    with st.spinner("Analizuojama nuotrauka..."):
                         try:
                             client = get_gemini_client(api_key)
 
@@ -1013,7 +1126,7 @@ with tab1:
                             max_size = 1600
                             if image.width > max_size or image.height > max_size:
                                 image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-                                st.caption(f"Nuotrauka optimizuota ({image.width}x{image.height})")
+                                st.caption("Nuotrauka optimizuota greitesniam apdorojimui")
 
                             img_buffer = BytesIO()
                             image.save(img_buffer, format=img_format)
@@ -1044,28 +1157,25 @@ GRAŽINK TIK JSON ARRAY formatu:
                             )
 
                             if not response.text:
-                                st.error("Nepavyko atpažinti nuotraukos turinio. Bandykite aiškesnę nuotrauką.")
+                                st.error("Nepavyko atpažinti nuotraukos turinio. Pabandykite aiškesnę nuotrauką.")
                             else:
                                 cards = parse_flashcards_json(response.text)
                                 if cards:
                                     save_generated_cards(cards)
                                 else:
-                                    st.error("Nepavyko sugeneruoti kortelių iš šios nuotraukos.")
+                                    st.error("Nepavyko sukurti kortelių iš šios nuotraukos. Pabandykite kitą.")
                         except Exception as e:
-                            error_type = type(e).__name__
                             if "timeout" in str(e).lower():
-                                st.error("Užklausa užtruko per ilgai. Bandykite mažesnę nuotrauką.")
+                                st.error("Užtruko per ilgai. Pabandykite mažesnę nuotrauką.")
                             else:
-                                st.error(f"Klaida analizuojant nuotrauką: {error_type}")
-                                with st.expander("Klaidos detalės"):
-                                    st.code(str(e))
+                                st.error("Nepavyko apdoroti nuotraukos. Bandykite dar kartą.")
 
 # ==================
 # TAB 2: MOKYMASIS
 # ==================
 with tab2:
-    st.header("🧠 Mokymasis (Spaced Repetition)")
-    st.markdown("**Leitner sistema** - išmok efektyviau prisimenant tinkamu laiku!")
+    st.header("🧠 Mokymasis")
+    st.markdown("**Kartok protingai** — sistema parinks, kurias korteles laikas pakartoti")
 
     today_cards = get_today_cards()
     total_study_cards = len(st.session_state.study_cards)
@@ -1082,22 +1192,23 @@ with tab2:
     st.divider()
 
     if not st.session_state.study_cards:
-        st.info("Pirmiausia sukurkite flashcard'us 'Šaltinis' tab'e!")
+        st.info("Kol kas neturite kortelių. Sukurkite jas 'Naujos kortelės' skiltyje!")
 
-        st.subheader("Kaip veikia Spaced Repetition?")
+        st.subheader("Kaip tai veikia?")
         st.markdown("""
-        1. **Sukurkite kortelę** - ji patenka į 1 dėžutę
-        2. **Atsakykite teisingai** - kortelė pereina į kitą dėžutę (kartojimo intervalas ilgėja)
-        3. **Atsakykite neteisingai** - kortelė grįžta į 1 dėžutę
-        4. **5 dėžutė** = įsisavinta! (kartojama kas 14 dienų)
+        1. **Sukuriate korteles** — jos iškart patenka į mokymosi planą
+        2. **Atsakote teisingai** — kortelė rodoma vis rečiau (nes jau mokate!)
+        3. **Atsakote neteisingai** — kortelė grįžta kartoti dažniau
+        4. **Įsisavinote** — kortelė kartojama tik kas 2 savaites
         """)
     elif not today_cards:
-        st.success("Šiandien viskas pakartota! Grįžkite rytoj.")
+        st.success("Puiku! Šiandien viskas pakartota. Grįžkite rytoj!")
 
         st.subheader("Jūsų progresas")
         for card_id, card_data in list(st.session_state.study_cards.items())[:5]:
             difficulty = card_data.get('difficulty', 3)
-            st.markdown(f"**{html.escape(card_data['question'][:50])}...** - Dėžutė {difficulty}/5")
+            level = ["", "Naujas", "Pradžia", "Vidutinis", "Gerai moku", "Įsisavinta"][min(difficulty, 5)]
+            st.markdown(f"**{html.escape(card_data['question'][:50])}...** — {level}")
     else:
         card_data = today_cards[0]
         card_id = card_data['id']
@@ -1105,17 +1216,17 @@ with tab2:
         st.subheader(f"Kortelė {1}/{len(today_cards)}")
 
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; color: white; margin: 20px 0;">
+        <div class="study-card study-card-q">
             <h3>{html.escape(card_data['question'])}</h3>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("👁️ Rodyti atsakymą", type="primary"):
+        if st.button("👁️ Rodyti atsakymą", type="primary", use_container_width=True):
             st.session_state.show_answer = True
 
         if st.session_state.show_answer:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #11998e, #38ef7d); padding: 30px; border-radius: 15px; color: white; margin: 20px 0;">
+            <div class="study-card study-card-a">
                 <h3>{html.escape(card_data['answer'])}</h3>
             </div>
             """, unsafe_allow_html=True)
@@ -1145,10 +1256,10 @@ with tab2:
 # TAB 3: PERŽIŪRA
 # ==================
 with tab3:
-    st.header("🎴 Peržiūrėk flashcard'us")
+    st.header("🎴 Jūsų kortelės")
 
     if not st.session_state.flashcards:
-        st.info("Pirmiausia sukurkite flashcard'us 'Šaltinis' tab'e!")
+        st.info("Kol kas neturite kortelių. Sukurkite jas 'Naujos kortelės' skiltyje!")
     else:
         cards = st.session_state.flashcards
         total = len(cards)
@@ -1178,7 +1289,7 @@ with tab3:
         </div>
         """, unsafe_allow_html=True)
 
-        st.caption("Desktop: užvesk pelę | Mobile: bakstelėk kortelę")
+        st.caption("Spauskite ant kortelės, kad pamatytumėte atsakymą")
 
         # TTS Audio - stored in session_state so it persists across reruns
         col_audio1, col_audio2 = st.columns(2)
@@ -1192,9 +1303,9 @@ with tab3:
                     st.session_state.tts_audio = audio_buffer.getvalue()
                     st.session_state.tts_card_idx = current
                 except ImportError:
-                    st.warning("Įdiekite gTTS: pip install gtts")
-                except Exception as e:
-                    st.error(f"Audio klaida: {type(e).__name__}")
+                    st.warning("Garso funkcija šiuo metu neprieinama.")
+                except Exception:
+                    st.error("Nepavyko paleisti garso. Bandykite dar kartą.")
 
         with col_audio2:
             if st.button("🔊 Klausyti atsakymo", key="tts_a", use_container_width=True):
@@ -1206,24 +1317,24 @@ with tab3:
                     st.session_state.tts_audio = audio_buffer.getvalue()
                     st.session_state.tts_card_idx = current
                 except ImportError:
-                    st.warning("Įdiekite gTTS: pip install gtts")
-                except Exception as e:
-                    st.error(f"Audio klaida: {type(e).__name__}")
+                    st.warning("Garso funkcija šiuo metu neprieinama.")
+                except Exception:
+                    st.error("Nepavyko paleisti garso. Bandykite dar kartą.")
 
         # Persistent audio player - stays visible until card changes
         if 'tts_audio' in st.session_state and st.session_state.get('tts_card_idx') == current:
             st.audio(st.session_state.tts_audio, format='audio/mp3')
 
-        col1, col2, col3 = st.columns([1, 2, 1])
+        col_nav1, col_nav2 = st.columns(2)
 
-        with col1:
-            if st.button("⬅️ Atgal", disabled=current == 0):
+        with col_nav1:
+            if st.button("⬅️ Atgal", disabled=current == 0, use_container_width=True):
                 st.session_state.current_card -= 1
                 st.session_state.pop('tts_audio', None)
                 st.rerun()
 
-        with col3:
-            if st.button("Pirmyn ➡️", disabled=current == total - 1):
+        with col_nav2:
+            if st.button("Pirmyn ➡️", disabled=current == total - 1, use_container_width=True):
                 st.session_state.current_card += 1
                 st.session_state.pop('tts_audio', None)
                 st.rerun()
@@ -1245,70 +1356,62 @@ with tab3:
 # TAB 4: EKSPORTAS
 # ==================
 with tab4:
-    st.header("💾 Eksportuoti flashcard'us")
+    st.header("💾 Atsisiųsti korteles")
 
     if not st.session_state.flashcards:
-        st.info("Pirmiausia sukurkite flashcard'us!")
+        st.info("Kol kas neturite kortelių. Sukurkite jas ir galėsite atsisiųsti!")
     else:
-        st.success(f"Turite {len(st.session_state.flashcards)} flashcard'ų paruoštų eksportui")
+        st.success(f"Turite {len(st.session_state.flashcards)} kortelių — galite atsisiųsti bet kuriuo formatu")
 
-        col1, col2, col3 = st.columns(3)
+        col_dl1, col_dl2 = st.columns(2)
 
-        with col1:
-            st.subheader("Anki")
-            st.caption("Importuokite į Anki programą")
+        with col_dl1:
             st.download_button(
-                label="⬇️ CSV (Anki)",
+                label="⬇️ Anki (CSV)",
                 data=export_to_anki_csv(st.session_state.flashcards),
                 file_name=f"flashcards_anki_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
+                mime="text/csv",
+                use_container_width=True
             )
-
-        with col2:
-            st.subheader("Quizlet")
-            st.caption("Importuokite į Quizlet")
             st.download_button(
-                label="⬇️ JSON (Quizlet)",
+                label="⬇️ Quizlet (JSON)",
                 data=export_to_quizlet_json(st.session_state.flashcards),
                 file_name=f"flashcards_quizlet_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json"
+                mime="application/json",
+                use_container_width=True
             )
 
-        with col3:
-            st.subheader("Tekstas")
-            st.caption("Paprastas TXT formatas")
+        with col_dl2:
             st.download_button(
-                label="⬇️ TXT",
+                label="⬇️ Tekstas (TXT)",
                 data=export_to_txt(st.session_state.flashcards),
                 file_name=f"flashcards_{datetime.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain"
+                mime="text/plain",
+                use_container_width=True
             )
 
-        st.divider()
-        st.subheader("Spausdinimui")
+            html_table = """
+            <style>
+                @media print { .page-break { page-break-after: always; } }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                td, th { border: 1px solid #333; padding: 15px; }
+                th { background-color: #667eea; color: white; }
+            </style>
+            <h2>Mano Kortelės</h2>
+            <table>
+                <tr><th>Klausimas</th><th>Atsakymas</th></tr>
+            """
+            for c in st.session_state.flashcards:
+                html_table += f"<tr><td>{html.escape(c['klausimas'])}</td><td>{html.escape(c['atsakymas'])}</td></tr>"
+            html_table += "</table>"
 
-        html_table = """
-        <style>
-            @media print { .page-break { page-break-after: always; } }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            td, th { border: 1px solid #333; padding: 15px; }
-            th { background-color: #667eea; color: white; }
-        </style>
-        <h2>Mano Kortelės</h2>
-        <table>
-            <tr><th>Klausimas</th><th>Atsakymas</th></tr>
-        """
-        for c in st.session_state.flashcards:
-            html_table += f"<tr><td>{html.escape(c['klausimas'])}</td><td>{html.escape(c['atsakymas'])}</td></tr>"
-        html_table += "</table>"
-
-        st.download_button(
-            "⬇️ Atsisiųsti HTML (Spausdinimui)",
-            html_table,
-            "korteles_print.html",
-            "text/html"
-        )
-        st.caption("Atsisiuntę failą, atidarykite jį naršyklėje ir spauskite CTRL+P")
+            st.download_button(
+                "⬇️ Spausdinimui (HTML)",
+                html_table,
+                "korteles_print.html",
+                "text/html",
+                use_container_width=True
+            )
 
         st.divider()
         st.subheader("Peržiūra")
@@ -1320,12 +1423,12 @@ with tab4:
 # TAB 5: AI TUTOR CHAT
 # ==================
 with tab5:
-    st.header("💬 AI Tutor - Paklausk daugiau!")
-    
+    st.header("💬 Paklausk AI — paaiškinsiu!")
+
     if not st.session_state.flashcards:
-        st.info("Pirmiausia sukurkite flashcard'us 'Šaltinis' tab'e!")
+        st.info("Kol kas neturite kortelių. Sukurkite jas ir galėsite klausti AI apie bet kurią temą!")
     elif not api_key:
-        st.warning("Įveskite Gemini API key sidebar'e, kad galėtumėte naudoti AI Tutor.")
+        st.warning("Norint kalbėtis su AI, reikia API rakto. Įveskite jį nustatymuose (kairėje).")
     else:
         # Card selector
         card_options = [f"{i+1}. {c['klausimas'][:50]}..." for i, c in enumerate(st.session_state.flashcards)]
@@ -1339,7 +1442,7 @@ with tab5:
         
         # Show selected card context
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 15px; border-radius: 10px; color: white; margin: 10px 0;">
+        <div class="study-card study-card-q" style="padding: 16px;">
             <strong>❓ {html.escape(selected_card['klausimas'])}</strong><br>
             <span style="opacity: 0.9;">✅ {html.escape(selected_card['atsakymas'])}</span>
         </div>
@@ -1351,7 +1454,6 @@ with tab5:
             st.session_state.chat_card_context = selected_idx
         
         st.divider()
-        st.subheader("💬 Pokalbis")
         
         # Display chat history
         for msg in st.session_state.chat_messages:
@@ -1369,7 +1471,7 @@ with tab5:
             st.chat_message("user").write(user_question)
             
             # Generate AI response
-            with st.spinner("AI galvoja..."):
+            with st.spinner("Ruošiu atsakymą..."):
                 try:
                     client = get_gemini_client(api_key)
                     
@@ -1403,15 +1505,15 @@ ATSAKYMAS:"""
                         contents=prompt
                     )
                     
-                    ai_response = response.text.strip() if response.text else "Atsiprašau, nepavyko sugeneruoti atsakymo. Bandykite dar kartą!"
+                    ai_response = response.text.strip() if response.text else "Hmm, nepavyko parengti atsakymo. Pabandykite paklausti kitaip!"
                     
                     st.session_state.chat_messages.append({"role": "assistant", "content": ai_response})
                     st.chat_message("assistant").write(ai_response)
                     
                 except Exception as e:
-                    error_msg = "Klaida gaunant atsakymą. Patikrinkite API key ir bandykite dar kartą."
+                    error_msg = "Nepavyko gauti atsakymo. Bandykite dar kartą."
                     if "quota" in str(e).lower() or "429" in str(e):
-                        error_msg = "API kvotos limitas pasiektas. Palaukite kelias minutes."
+                        error_msg = "Serveris šiuo metu užimtas. Palaukite minutę ir bandykite dar kartą."
                     st.error(error_msg)
         
         # Clear chat button
