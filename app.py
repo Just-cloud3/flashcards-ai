@@ -672,7 +672,7 @@ with st.sidebar:
 
                 if st.button("🚀 Upgrade", type="primary", use_container_width=True):
                     result = create_checkout_session(st.session_state.user['email'])
-                    if result.get('url'):
+                    if result and isinstance(result, dict) and result.get('url'):
                         st.session_state.checkout_url = result['url']
                     else:
                         st.error(f"Klaida: {result.get('error', 'Nepavyko sukurti sesijos')}")

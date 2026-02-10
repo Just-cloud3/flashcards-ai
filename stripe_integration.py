@@ -11,9 +11,10 @@ APP_BASE_URL = os.getenv("APP_BASE_URL", "https://flashcards-ai-alkzzpbrvujame5y
 
 
 def create_checkout_session(customer_email=None):
-    """Create Stripe checkout session for Premium subscription"""
+    """Create Stripe checkout session for Premium subscription.
+    Returns {'url': '...'} on success or {'error': '...'} on failure."""
     if not stripe.api_key:
-        return None
+        return {"error": "STRIPE_SECRET_KEY nenustatytas. Patikrinkite Streamlit Secrets."}
 
     try:
         checkout_session = stripe.checkout.Session.create(
@@ -37,9 +38,9 @@ def create_checkout_session(customer_email=None):
             cancel_url=f'{APP_BASE_URL}/',
             customer_email=customer_email,
         )
-        return checkout_session.url
+        return {"url": checkout_session.url}
     except Exception as e:
-        return None
+        return {"error": str(e)}
 
 
 def verify_stripe_session(session_id):
