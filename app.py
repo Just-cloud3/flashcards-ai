@@ -74,8 +74,8 @@ def get_limit(limit_type):
 
 # Page config
 st.set_page_config(
-    page_title="FlashCards AI - Lietuvių studentams",
-    page_icon="📚",
+    page_title="QUANTUM — Išmanus mokymasis",
+    page_icon="⚛️",
     layout="wide"
 )
 
@@ -159,89 +159,61 @@ st.markdown("""
         font-size: 1rem !important;
         padding: 10px 16px !important;
     }
-
-    /* Tabs: scrollable, bigger touch area */
-    .stTabs [data-baseweb="tab"] {
-        padding: 12px 8px !important;
-        font-size: 0.85rem !important;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0 !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Wider inputs */
-    .stTextInput input, .stTextArea textarea {
-        font-size: 16px !important; /* prevents iOS zoom on focus */
-    }
-
-    /* Smaller flip cards on mobile */
-    .flip-card, .flip-card-inner, .flip-card-front, .flip-card-back {
-        min-height: 180px;
-    }
-    .flip-card-front, .flip-card-back {
-        padding: 16px;
-        font-size: 1em;
-    }
-
-    /* Study cards responsive */
-    .study-card {
-        padding: 20px 16px;
-    }
-    .study-card h3 {
-        font-size: 1.05em;
-    }
-
-    /* Metrics compact */
-    [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
-    }
-    [data-testid="stMetricLabel"] {
-        font-size: 0.8rem !important;
-    }
-
-    /* File uploader - bigger drag area */
-    [data-testid="stFileUploader"] {
-        min-height: 100px;
-    }
-    [data-testid="stFileUploader"] section {
-        padding: 20px !important;
-    }
-
-    /* Radio buttons (source type) - wrap nicely */
-    .stRadio > div {
-        flex-wrap: wrap !important;
-        gap: 4px !important;
-    }
-    .stRadio > div > label {
-        padding: 8px 12px !important;
-        font-size: 0.9rem !important;
-    }
-
-    /* Header text */
-    h1 { font-size: 1.6rem !important; }
-    h2 { font-size: 1.3rem !important; }
-
-    /* Expander touch target */
-    .streamlit-expanderHeader {
-        min-height: 44px !important;
-        font-size: 0.95rem !important;
-    }
+    margin-bottom: 2rem;
 }
 
-/* Extra small screens (iPhone SE, etc) */
-@media (max-width: 380px) {
-    .flip-card, .flip-card-inner, .flip-card-front, .flip-card-back {
-        min-height: 160px;
-    }
-    .flip-card-front, .flip-card-back {
-        padding: 12px;
-        font-size: 0.9em;
-    }
-    .study-card { padding: 16px 12px; }
-    .study-card h3 { font-size: 1em; }
-    h1 { font-size: 1.4rem !important; }
+/* Glassmorphism Containers */
+div[data-testid="stExpander"], .stChatMessage, .stTabs [data-baseweb="tab"] {
+    background: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px);
+}
+
+/* Custom Primary Buttons */
+button[kind="primary"] {
+    background: linear-gradient(135deg, #00f2ff, #0060ff) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(0, 242, 255, 0.2) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[kind="primary"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 242, 255, 0.4) !important;
+}
+
+/* Tabs UI */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background-color: transparent;
+}
+
+.stTabs [data-baseweb="tab"] {
+    padding: 10px 20px !important;
+    color: #8b949e !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background: rgba(0, 242, 255, 0.1) !important;
+    color: #00f2ff !important;
+    border-bottom: 2px solid #00f2ff !important;
+}
+
+/* Metric & Alerts */
+[data-testid="stMetricValue"] { color: #00f2ff !important; }
+.stAlert { border-radius: 12px !important; border: 1px solid var(--border) !important; }
+
+/* Flip Cards Premium */
+.flip-card-front, .study-card-q {
+    background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+    border: 1px solid rgba(255,255,255,0.05) !important;
+}
+.flip-card-back, .study-card-a {
+    background: linear-gradient(135deg, #064e3b, #065f46) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -691,16 +663,57 @@ if st.session_state.generation_success > 0:
     st.success(f"Paruošta {st.session_state.generation_success} kortelių! Galite pradėti mokytis.")
     st.session_state.generation_success = 0
 
-# Header
-st.title("📚 FlashCards AI")
-st.markdown("**Mokykis greičiau ir protingiau** — sukurk korteles iš bet kokios medžiagos per kelias sekundes")
+# Main UI Logic
+if not st.session_state.user:
+    # LANDING PAGE FOR GUESTS
+    st.markdown("""
+    <div style="text-align: center; padding: 40px 20px;">
+        <h1 style="font-size: 3.5rem; background: linear-gradient(45deg, #00f2ff, #0060ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">QUANTUM</h1>
+        <p style="font-size: 1.5rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
+            Ateities intelektas tavo kortelėse. Kurk, mokykis ir įsisavink žinias rekordiniu greičiu.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="color: #00f2ff;">⚡ Greitis</h3>
+            <p style="color: #8b949e;">Sukurk 10 kortelių iš bet kokio teksto ar PDF per 5 sekundes.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="color: #00f2ff;">🧠 Intelektas</h3>
+            <p style="color: #8b949e;">Gemini 2.0 technologija užtikrina aukščiausią klausimų kokybę.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="color: #00f2ff;">🎯 Rezultatai</h3>
+            <p style="color: #8b949e;">Spaced Repetition sistema padės viską prisiminti visam laikui.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.info("💡 **Norėdami pradėti, prisijunkite arba registruokitės kairėje pusėje esančiame meniu.**")
+    
+    # Showcase Image or Feature preview could go here
+    st.image("assets/logo.png", width=300) # Smaller logo at bottom for flair
+    
+    st.stop() # Prevents guests from seeing the technical tabs below
 
 # Sidebar
 with st.sidebar:
-    theme = st.radio("Tema:", ["☀️ Šviesi", "🌙 Tamsi"], horizontal=True, label_visibility="collapsed")
-
-    if theme == "🌙 Tamsi":
-        st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
+    # Logo & Brand
+    st.image("assets/logo.png", use_container_width=True)
+    st.markdown("<h2 style='text-align: center; color: #00f2ff; margin-top: -10px;'>QUANTUM</h2>", unsafe_allow_html=True)
+    st.caption("<p style='text-align: center;'>Ateities mokymosi platforma</p>", unsafe_allow_html=True)
+    
+    st.divider()
 
     st.divider()
     
