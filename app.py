@@ -1,4 +1,6 @@
 import streamlit as st
+import time
+import random
 from google import genai
 from google.genai import types
 import PyPDF2
@@ -273,6 +275,26 @@ if 'user' not in st.session_state:
     st.session_state.user = None
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = 'login'
+
+# Exam session state
+if 'exam_active' not in st.session_state:
+    st.session_state.exam_active = False
+if 'exam_cards' not in st.session_state:
+    st.session_state.exam_cards = []
+if 'exam_current_idx' not in st.session_state:
+    st.session_state.exam_current_idx = 0
+if 'exam_results' not in st.session_state:
+    st.session_state.exam_results = []
+if 'exam_start_time' not in st.session_state:
+    st.session_state.exam_start_time = None
+if 'exam_show_answer' not in st.session_state:
+    st.session_state.exam_show_answer = False
+if 'exam_finished' not in st.session_state:
+    st.session_state.exam_finished = False
+if 'exam_total' not in st.session_state:
+    st.session_state.exam_total = 0
+if 'exam_time_limit' not in st.session_state:
+    st.session_state.exam_time_limit = None
 
 # Handle Stripe Redirect (after successful payment)
 if STRIPE_AVAILABLE and 'session_id' in st.query_params:
@@ -984,7 +1006,13 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
     st.markdown("Turite klausimų ar idėjų? [Parašykite mums](mailto:petrovic222@gmail.com)")
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Naujos kortelės", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Atsisiuntimas", "💬 Paklausti AI"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📝 Naujos kortelės",
+    "🧠 Mokymasis",
+    "🎴 Peržiūra",
+    "💾 Atsisiuntimas",
+    "💬 Paklausti AI"
+])
 
 can_generate = st.session_state.flashcards_count < get_limit('daily')
 
