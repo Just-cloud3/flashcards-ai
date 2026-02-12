@@ -1134,49 +1134,56 @@ with tab1:
     elif source_type == "📸 Nuotrauka":
         st.info("Nufotografuokite savo užrašus, lentą ar skaidrę — AI viską atpažins!")
 
-        uploaded_image = st.file_uploader(
-            "Įkelkite nuotrauką:",
+        uploaded_images = st.file_uploader(
+            "Įkelkite nuotrauką (-as):",
             type=["jpg", "jpeg", "png", "webp"],
-            help="Palaikomi formatai: JPG, PNG, WEBP"
+            help="Palaikomi formatai: JPG, PNG, WEBP. Galima kelti kelias nuotraukas iš karto!",
+            accept_multiple_files=True
         )
 
-        if uploaded_image:
-            image = Image.open(uploaded_image)
-            st.image(image, caption="Įkelta nuotrauka", use_container_width=True)
+        if uploaded_images:
+            num_cards_img = st.slider("Kortelių kiekis (vienai nuotraukai):", 5, 20, 10, key="slider_img")
+            
+            # Show previews
+            preview_cols = st.columns(min(len(uploaded_images), 4))
+            for i, img_file in enumerate(uploaded_images):
+                with preview_cols[i % len(preview_cols)]:
+                    preview = Image.open(img_file)
+                    st.image(preview, caption=f"📸 {i+1}", use_container_width=True)
+                    img_file.seek(0)  # Reset file pointer after preview
 
-            num_cards_img = st.slider("Kortelių kiekis:", 5, 20, 10, key="slider_img")
-
-            if st.button("🎯 Generuoti iš nuotraukos", type="primary", disabled=not can_generate, use_container_width=True):
+            if st.button("🎯 Generuoti iš nuotraukų", type="primary", disabled=not can_generate, use_container_width=True):
                 if not api_key:
                     st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
                 else:
-                    with st.spinner("Analizuojama nuotrauka..."):
-                        try:
-                            client = get_gemini_client(api_key)
+                    all_cards = []
+                    for idx, uploaded_image in enumerate(uploaded_images):
+                        with st.spinner(f"Analizuojama nuotrauka {idx+1}/{len(uploaded_images)}..."):
+                            try:
+                                client = get_gemini_client(api_key)
+                                image = Image.open(uploaded_image)
 
-                            # Keep original format when possible
-                            img_format = uploaded_image.type.split('/')[-1].upper()
-                            if img_format == 'JPG':
-                                img_format = 'JPEG'
-                            if img_format not in ('JPEG', 'PNG', 'WEBP'):
-                                img_format = 'PNG'
+                                # Keep original format when possible
+                                img_format = uploaded_image.type.split('/')[-1].upper()
+                                if img_format == 'JPG':
+                                    img_format = 'JPEG'
+                                if img_format not in ('JPEG', 'PNG', 'WEBP'):
+                                    img_format = 'PNG'
 
-                            # Resize image if too large (max 1600px width/height)
-                            # This helps avoid ClientError and speeds up processing
-                            max_size = 1600
-                            if image.width > max_size or image.height > max_size:
-                                image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-                                st.caption("Nuotrauka optimizuota greitesniam apdorojimui")
+                                # Resize image if too large
+                                max_size = 1600
+                                if image.width > max_size or image.height > max_size:
+                                    image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 
-                            img_buffer = BytesIO()
-                            image.save(img_buffer, format=img_format)
-                            img_bytes = img_buffer.getvalue()
+                                img_buffer = BytesIO()
+                                image.save(img_buffer, format=img_format)
+                                img_bytes = img_buffer.getvalue()
 
-                            mime_type = f"image/{img_format.lower()}"
-                            if img_format == 'JPEG':
-                                mime_type = "image/jpeg"
+                                mime_type = f"image/{img_format.lower()}"
+                                if img_format == 'JPEG':
+                                    mime_type = "image/jpeg"
 
-                            prompt = f"""Tu esi ekspertas akademinis asistentas.
+                                prompt = f"""Tu esi ekspertas akademinis asistentas.
 
 Išanalizuok šią nuotrauką (tai gali būti užrašai, lenta, skaidrė ar vadovėlis).
 Sukurk {num_cards_img} kortelių lietuvių kalba.
@@ -1186,29 +1193,35 @@ GRĄŽINK TIK JSON ARRAY formatu:
   {{"klausimas": "...", "atsakymas": "..."}}
 ]"""
 
-                            image_part = types.Part.from_bytes(
-                                data=img_bytes,
-                                mime_type=mime_type
-                            )
+                                image_part = types.Part.from_bytes(
+                                    data=img_bytes,
+                                    mime_type=mime_type
+                                )
 
-                            response = client.models.generate_content(
-                                model=GEMINI_MODEL,
-                                contents=[prompt, image_part]
-                            )
+                                response = client.models.generate_content(
+                                    model=GEMINI_MODEL,
+                                    contents=[prompt, image_part]
+                                )
 
-                            if not response.text:
-                                st.error("Nepavyko atpažinti nuotraukos turinio. Pabandykite aiškesnę nuotrauką.")
-                            else:
-                                cards = parse_flashcards_json(response.text)
-                                if cards:
-                                    save_generated_cards(cards)
+                                if not response.text:
+                                    st.warning(f"Nepavyko atpažinti nuotraukos {idx+1} turinio.")
                                 else:
-                                    st.error("Nepavyko sukurti kortelių iš šios nuotraukos. Pabandykite kitą.")
-                        except Exception as e:
-                            if "timeout" in str(e).lower():
-                                st.error("Užtruko per ilgai. Pabandykite mažesnę nuotrauką.")
-                            else:
-                                st.error("Nepavyko apdoroti nuotraukos. Bandykite dar kartą.")
+                                    cards = parse_flashcards_json(response.text)
+                                    if cards:
+                                        all_cards.extend(cards)
+                                    else:
+                                        st.warning(f"Nepavyko sukurti kortelių iš nuotraukos {idx+1}.")
+                            except Exception as e:
+                                if "timeout" in str(e).lower():
+                                    st.warning(f"Nuotrauka {idx+1} — užtruko per ilgai, praleista.")
+                                else:
+                                    st.warning(f"Nuotrauka {idx+1} — nepavyko apdoroti.")
+                    
+                    # Save all cards at once
+                    if all_cards:
+                        save_generated_cards(all_cards)
+                    else:
+                        st.error("Nepavyko sukurti kortelių iš nuotraukų. Pabandykite kitas.")
 
 # ==================
 # TAB 2: MOKYMASIS
