@@ -485,3 +485,98 @@ def delete_user_account(user_id: str):
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# ========================
+# STREAK TRACKING
+# ========================
+
+"""
+SQL — Paleiskite Supabase SQL Editoriuje:
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_study_date DATE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS longest_streak INTEGER DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS total_cards_studied INTEGER DEFAULT 0;
+"""
+
+def update_streak(user_id: str, cards_studied: int = 1):
+    """Update user's study streak. Call after each study session."""
+    try:
+        supabase = get_supabase()
+        profile = supabase.table("profiles").select(
+            "streak_count, last_study_date, longest_streak, total_cards_studied"
+        ).eq("id", user_id).single().execute()
+        
+        today = datetime.now().date()
+        data = profile.data or {}
+        current_streak = data.get("streak_count", 0) or 0
+        longest = data.get("longest_streak", 0) or 0
+        total = data.get("total_cards_studied", 0) or 0
+        last_study = data.get("last_study_date")
+        
+        if last_study:
+            last_date = datetime.strptime(str(last_study), "%Y-%m-%d").date()
+            diff = (today - last_date).days
+            
+            if diff == 0:
+                # Already studied today — just update total
+                new_streak = current_streak
+            elif diff == 1:
+                # Consecutive day — increment streak!
+                new_streak = current_streak + 1
+            else:
+                # Missed days — reset streak
+                new_streak = 1
+        else:
+            # First time studying
+            new_streak = 1
+        
+        new_longest = max(longest, new_streak)
+        
+        supabase.table("profiles").update({
+            "streak_count": new_streak,
+            "last_study_date": today.isoformat(),
+            "longest_streak": new_longest,
+            "total_cards_studied": total + cards_studied
+        }).eq("id", user_id).execute()
+        
+        return {
+            "success": True,
+            "streak": new_streak,
+            "longest": new_longest,
+            "total": total + cards_studied
+        }
+    except Exception as e:
+        return {"success": False, "streak": 0, "error": str(e)}
+
+
+def get_streak(user_id: str):
+    """Get user's current streak info"""
+    try:
+        supabase = get_supabase()
+        profile = supabase.table("profiles").select(
+            "streak_count, last_study_date, longest_streak, total_cards_studied"
+        ).eq("id", user_id).single().execute()
+        
+        data = profile.data or {}
+        today = datetime.now().date()
+        last_study = data.get("last_study_date")
+        streak = data.get("streak_count", 0) or 0
+        
+        # Check if streak is still valid (not missed today)
+        if last_study:
+            last_date = datetime.strptime(str(last_study), "%Y-%m-%d").date()
+            diff = (today - last_date).days
+            if diff > 1:
+                streak = 0  # Streak broken
+        
+        return {
+            "streak": streak,
+            "longest": data.get("longest_streak", 0) or 0,
+            "total": data.get("total_cards_studied", 0) or 0,
+            "studied_today": last_study == today.isoformat() if last_study else False
+        }
+    except Exception:
+        return {"streak": 0, "longest": 0, "total": 0, "studied_today": False}
+

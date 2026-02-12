@@ -28,7 +28,8 @@ try:
         export_user_data, delete_user_account,
         get_user_premium_status, set_user_premium_status, get_user_profile,
         make_set_public, get_public_sets, clone_public_set, get_user_sets,
-        change_password, change_email, update_display_name, reset_password
+        change_password, change_email, update_display_name, reset_password,
+        update_streak, get_streak
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
@@ -534,6 +535,7 @@ def update_card_difficulty(card_id, difficulty):
         # Sync with Supabase only if card has a DB ID (not local card_* format)
         if st.session_state.user and SUPABASE_AVAILABLE and not card_id.startswith("card_"):
             update_card_progress(card_id, difficulty)
+            update_streak(st.session_state.user['id'])
 
 # ==========================
 # FLASHCARD GENERATION
@@ -758,6 +760,81 @@ with st.sidebar:
                     streamlit_js_eval(js_expressions="localStorage.removeItem('quantum_user')")
                     st.rerun()
 
+            # Account editing
+            with st.expander("✏️ Redaguoti paskyrą"):
+                # Display name
+                current_profile = get_user_profile(st.session_state.user['id'])
+                current_name = current_profile.get('display_name', '')
+
+                new_name = st.text_input(
+                    "Vardas / slapyvardis:",
+                    value=current_name,
+                    placeholder="Pvz. Jonas S.",
+                    key="edit_display_name"
+                )
+                if st.button("💾 Išsaugoti vardą", use_container_width=True, key="save_name_btn"):
+                    if new_name and new_name != current_name:
+                        res = update_display_name(st.session_state.user['id'], new_name)
+                        if res.get('success'):
+                            st.success("Vardas atnaujintas!")
+                        else:
+                            st.error("Nepavyko atnaujinti vardo.")
+                    elif not new_name:
+                        st.warning("Įveskite vardą")
+
+                st.divider()
+
+                # Change email
+                st.markdown("**Keisti el. paštą**")
+                new_email = st.text_input(
+                    "Naujas el. paštas:",
+                    placeholder="naujas@email.com",
+                    key="edit_email"
+                )
+                if st.button("📧 Keisti el. paštą", use_container_width=True, key="change_email_btn"):
+                    if new_email and new_email != st.session_state.user['email']:
+                        res = change_email(new_email)
+                        if res.get('success'):
+                            st.success("Patvirtinimo laiškas išsiųstas į naują el. paštą. Patikrinkite pašto dėžutę.")
+                        else:
+                            err = res.get('error', '').lower()
+                            if 'already' in err or 'exists' in err:
+                                st.error("Šis el. paštas jau užregistruotas.")
+                            else:
+                                st.error("Nepavyko pakeisti el. pašto. Bandykite vėliau.")
+                    elif not new_email:
+                        st.warning("Įveskite naują el. paštą")
+
+                st.divider()
+
+                # Change password
+                st.markdown("**Keisti slaptažodį**")
+                new_pass = st.text_input(
+                    "Naujas slaptažodis:",
+                    type="password",
+                    placeholder="Min. 6 simboliai",
+                    key="edit_new_pass"
+                )
+                new_pass_confirm = st.text_input(
+                    "Pakartokite slaptažodį:",
+                    type="password",
+                    placeholder="••••••••",
+                    key="edit_new_pass_confirm"
+                )
+                if st.button("🔑 Keisti slaptažodį", use_container_width=True, key="change_pass_btn"):
+                    if not new_pass or not new_pass_confirm:
+                        st.warning("Užpildykite abu laukus")
+                    elif len(new_pass) < 6:
+                        st.warning("Slaptažodis per trumpas (min. 6 simboliai)")
+                    elif new_pass != new_pass_confirm:
+                        st.warning("Slaptažodžiai nesutampa")
+                    else:
+                        res = change_password(new_pass)
+                        if res.get('success'):
+                            st.success("Slaptažodis pakeistas sėkmingai!")
+                        else:
+                            st.error("Nepavyko pakeisti slaptažodžio. Bandykite vėliau.")
+
             # BDAR: Data export + Account deletion
             with st.expander("🔒 Mano duomenys ir privatumas"):
                 st.caption("Jūs turite visišką kontrolę savo duomenims:")
@@ -900,12 +977,10 @@ with st.sidebar:
                 # Forgot password
                 if st.button("🔑 Pamiršau slaptažodį", use_container_width=True):
                     if email:
-                        try:
-                            from supabase_client import get_supabase
-                            supabase = get_supabase()
-                            supabase.auth.reset_password_email(email)
-                            st.success("✅ Slaptažodžio atnaujinimo nuoroda išsiųsta į jūsų el. paštą!")
-                        except Exception:
+                        res = reset_password(email)
+                        if res.get('success'):
+                            st.success("Slaptažodžio atnaujinimo nuoroda išsiųsta į jūsų el. paštą!")
+                        else:
                             st.error("Nepavyko išsiųsti. Patikrinkite el. pašto adresą.")
                     else:
                         st.warning("Pirmiausia įveskite savo el. pašto adresą viršuje.")
@@ -957,6 +1032,51 @@ with st.sidebar:
 
     if remaining == 0 and not st.session_state.is_premium:
         st.warning("Dienos limitas pasiektas. Tapkite Premium nariu ir kurkite neribotai!")
+
+    # 🔥 Streak display
+    if st.session_state.user and SUPABASE_AVAILABLE:
+        streak_data = get_streak(st.session_state.user['id'])
+        streak = streak_data['streak']
+        longest = streak_data['longest']
+        total = streak_data['total']
+        studied_today = streak_data['studied_today']
+        
+        st.divider()
+        
+        # Fire emojis based on streak length
+        if streak >= 30:
+            fire = "🔥🔥🔥🔥🔥"
+            msg = "LEGENDINIS! Mėnuo iš eilės!"
+        elif streak >= 14:
+            fire = "🔥🔥🔥🔥"
+            msg = "NEĮTIKĖTINA! 2+ savaitės!"
+        elif streak >= 7:
+            fire = "🔥🔥🔥"
+            msg = "PUIKU! Visa savaitė!"
+        elif streak >= 3:
+            fire = "🔥🔥"
+            msg = "Šauniai sekasi!"
+        elif streak >= 1:
+            fire = "🔥"
+            msg = "Geras startas!"
+        else:
+            fire = "💤"
+            msg = "Mokykis šiandien!"
+        
+        st.markdown(f"### {fire} {streak} d.")
+        
+        if studied_today:
+            st.success(f"✅ Šiandien jau mokėtės!")
+        else:
+            st.warning("⏳ Šiandien dar nesimokėte")
+        
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            st.metric("Rekordas", f"{longest} d.")
+        with col_s2:
+            st.metric("Iš viso", f"{total} 🃏")
+        
+        st.caption(msg)
 
     st.divider()
     st.caption("Sukurta su ❤️ Lietuvos studentams")
@@ -1566,96 +1686,128 @@ with tab3:
     if not st.session_state.flashcards:
         st.info("Kol kas neturite kortelių. Sukurkite jas 'Naujos kortelės' skiltyje!")
     else:
-        cards = st.session_state.flashcards
-        total = len(cards)
+        all_cards = st.session_state.flashcards
 
-        # Clamp current_card to valid range
-        if st.session_state.current_card >= total:
-            st.session_state.current_card = total - 1
-        current = st.session_state.current_card
+        # Search & filter
+        search_col, count_col = st.columns([3, 1])
+        with search_col:
+            card_search = st.text_input(
+                "🔍 Ieškoti kortelėse:",
+                placeholder="Įveskite raktažodį...",
+                key="card_search"
+            )
+        with count_col:
+            st.metric("Iš viso", len(all_cards))
 
-        st.progress((current + 1) / total)
-        st.caption(f"Kortelė {current + 1} iš {total}")
+        # Filter cards by search query
+        if card_search:
+            query_lower = card_search.lower()
+            filtered_indices = [
+                i for i, c in enumerate(all_cards)
+                if query_lower in c['klausimas'].lower() or query_lower in c['atsakymas'].lower()
+            ]
+            cards = [all_cards[i] for i in filtered_indices]
+            if not cards:
+                st.warning(f"Nerasta kortelių su \"{card_search}\"")
+            else:
+                st.caption(f"Rasta {len(cards)} iš {len(all_cards)} kortelių")
+        else:
+            filtered_indices = list(range(len(all_cards)))
+            cards = all_cards
 
-        card = cards[current]
-        q_escaped = html.escape(card['klausimas'])
-        a_escaped = html.escape(card['atsakymas'])
+        if cards:
+            total = len(cards)
 
-        st.markdown(f"""
-        <div class="flip-card" onclick="this.querySelector('.flip-card-inner').classList.toggle('flipped')">
-            <div class="flip-card-inner">
-                <div class="flip-card-front">
-                    <p><strong>Klausimas:</strong><br>{q_escaped}</p>
-                </div>
-                <div class="flip-card-back">
-                    <p><strong>Atsakymas:</strong><br>{a_escaped}</p>
+            # Clamp current_card to valid range
+            if st.session_state.current_card >= total:
+                st.session_state.current_card = total - 1
+            if st.session_state.current_card < 0:
+                st.session_state.current_card = 0
+            current = st.session_state.current_card
+
+            st.progress((current + 1) / total)
+            st.caption(f"Kortelė {current + 1} iš {total}")
+
+            card = cards[current]
+            q_escaped = html.escape(card['klausimas'])
+            a_escaped = html.escape(card['atsakymas'])
+
+            st.markdown(f"""
+            <div class="flip-card" onclick="this.querySelector('.flip-card-inner').classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">
+                        <p><strong>Klausimas:</strong><br>{q_escaped}</p>
+                    </div>
+                    <div class="flip-card-back">
+                        <p><strong>Atsakymas:</strong><br>{a_escaped}</p>
+                    </div>
                 </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        st.caption("Spauskite ant kortelės, kad pamatytumėte atsakymą")
+            st.caption("Spauskite ant kortelės, kad pamatytumėte atsakymą")
 
-        # TTS Audio - stored in session_state so it persists across reruns
-        col_audio1, col_audio2 = st.columns(2)
-        with col_audio1:
-            if st.button("🔊 Klausyti klausimo", key="tts_q", use_container_width=True):
-                try:
-                    from gtts import gTTS
-                    tts = gTTS(text=card['klausimas'], lang='lt')
-                    audio_buffer = BytesIO()
-                    tts.write_to_fp(audio_buffer)
-                    st.session_state.tts_audio = audio_buffer.getvalue()
-                    st.session_state.tts_card_idx = current
-                except ImportError:
-                    st.warning("Garso funkcija šiuo metu neprieinama.")
-                except Exception:
-                    st.error("Nepavyko paleisti garso. Bandykite dar kartą.")
+            # TTS Audio - stored in session_state so it persists across reruns
+            col_audio1, col_audio2 = st.columns(2)
+            with col_audio1:
+                if st.button("🔊 Klausyti klausimo", key="tts_q", use_container_width=True):
+                    try:
+                        from gtts import gTTS
+                        tts = gTTS(text=card['klausimas'], lang='lt')
+                        audio_buffer = BytesIO()
+                        tts.write_to_fp(audio_buffer)
+                        st.session_state.tts_audio = audio_buffer.getvalue()
+                        st.session_state.tts_card_idx = current
+                    except ImportError:
+                        st.warning("Garso funkcija šiuo metu neprieinama.")
+                    except Exception:
+                        st.error("Nepavyko paleisti garso. Bandykite dar kartą.")
 
-        with col_audio2:
-            if st.button("🔊 Klausyti atsakymo", key="tts_a", use_container_width=True):
-                try:
-                    from gtts import gTTS
-                    tts = gTTS(text=card['atsakymas'], lang='lt')
-                    audio_buffer = BytesIO()
-                    tts.write_to_fp(audio_buffer)
-                    st.session_state.tts_audio = audio_buffer.getvalue()
-                    st.session_state.tts_card_idx = current
-                except ImportError:
-                    st.warning("Garso funkcija šiuo metu neprieinama.")
-                except Exception:
-                    st.error("Nepavyko paleisti garso. Bandykite dar kartą.")
+            with col_audio2:
+                if st.button("🔊 Klausyti atsakymo", key="tts_a", use_container_width=True):
+                    try:
+                        from gtts import gTTS
+                        tts = gTTS(text=card['atsakymas'], lang='lt')
+                        audio_buffer = BytesIO()
+                        tts.write_to_fp(audio_buffer)
+                        st.session_state.tts_audio = audio_buffer.getvalue()
+                        st.session_state.tts_card_idx = current
+                    except ImportError:
+                        st.warning("Garso funkcija šiuo metu neprieinama.")
+                    except Exception:
+                        st.error("Nepavyko paleisti garso. Bandykite dar kartą.")
 
-        # Persistent audio player - stays visible until card changes
-        if 'tts_audio' in st.session_state and st.session_state.get('tts_card_idx') == current:
-            st.audio(st.session_state.tts_audio, format='audio/mp3')
+            # Persistent audio player - stays visible until card changes
+            if 'tts_audio' in st.session_state and st.session_state.get('tts_card_idx') == current:
+                st.audio(st.session_state.tts_audio, format='audio/mp3')
 
-        col_nav1, col_nav2 = st.columns(2)
+            col_nav1, col_nav2 = st.columns(2)
 
-        with col_nav1:
-            if st.button("⬅️ Atgal", disabled=current == 0, use_container_width=True):
-                st.session_state.current_card -= 1
-                st.session_state.pop('tts_audio', None)
-                st.rerun()
+            with col_nav1:
+                if st.button("⬅️ Atgal", disabled=current == 0, use_container_width=True):
+                    st.session_state.current_card -= 1
+                    st.session_state.pop('tts_audio', None)
+                    st.rerun()
 
-        with col_nav2:
-            if st.button("Pirmyn ➡️", disabled=current == total - 1, use_container_width=True):
-                st.session_state.current_card += 1
-                st.session_state.pop('tts_audio', None)
-                st.rerun()
+            with col_nav2:
+                if st.button("Pirmyn ➡️", disabled=current == total - 1, use_container_width=True):
+                    st.session_state.current_card += 1
+                    st.session_state.pop('tts_audio', None)
+                    st.rerun()
 
-        st.divider()
-        st.subheader("Redaguoti korteles")
+            st.divider()
+            st.subheader("Redaguoti korteles")
 
-        for i, c in enumerate(cards):
-            label = f"**{i+1}. {html.escape(c['klausimas'][:50])}{'...' if len(c['klausimas']) > 50 else ''}**"
-            with st.expander(label):
-                new_q = st.text_input("Klausimas:", c['klausimas'], key=f"q_{i}")
-                new_a = st.text_area("Atsakymas:", c['atsakymas'], key=f"a_{i}", height=100)
+            for idx_in_filtered, real_idx in enumerate(filtered_indices):
+                c = all_cards[real_idx]
+                label = f"**{real_idx+1}. {html.escape(c['klausimas'][:50])}{'...' if len(c['klausimas']) > 50 else ''}**"
+                with st.expander(label):
+                    new_q = st.text_input("Klausimas:", c['klausimas'], key=f"q_{real_idx}")
+                    new_a = st.text_area("Atsakymas:", c['atsakymas'], key=f"a_{real_idx}", height=100)
 
-                if st.button("💾 Išsaugoti", key=f"save_{i}"):
-                    st.session_state.flashcards[i] = {"klausimas": new_q, "atsakymas": new_a}
-                    st.success("Išsaugota!")
+                    if st.button("💾 Išsaugoti", key=f"save_{real_idx}"):
+                        st.session_state.flashcards[real_idx] = {"klausimas": new_q, "atsakymas": new_a}
+                        st.success("Išsaugota!")
 
 # ==================
 # TAB 4: EKSPORTAS
