@@ -1,4 +1,4 @@
-# Stripe Payment Integration for FlashCards AI
+# Stripe Payment Integration for QUANTUM
 import stripe
 import os
 
@@ -24,8 +24,8 @@ def create_checkout_session(customer_email=None):
                     'price_data': {
                         'currency': 'eur',
                         'product_data': {
-                            'name': 'FlashCards AI Premium',
-                            'description': 'Neriboti flashcard\'ai + Didesni failų limitai',
+                            'name': 'QUANTUM Premium',
+                            'description': 'Neribotos kortelės + Didesni failų limitai',
                         },
                         'unit_amount': 399,  # €3.99
                         'recurring': {'interval': 'month'},

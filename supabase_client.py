@@ -1,4 +1,4 @@
-# Supabase Client for FlashCards AI
+# Supabase Client for QUANTUM
 import os
 from supabase import create_client, Client
 from datetime import datetime, timedelta
@@ -213,6 +213,126 @@ def delete_flashcard_set(set_id: str):
         # Then delete the set
         supabase.table("flashcard_sets").delete().eq("id", set_id).execute()
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def get_user_sets(user_id: str):
+    """Get all sets for a user with card counts (for publishing UI)"""
+    try:
+        supabase = get_supabase()
+        sets = supabase.table("flashcard_sets").select("id, name, is_public, university, course, subject").eq("user_id", user_id).execute()
+        
+        result_sets = []
+        for s in (sets.data or []):
+            # Get card count for this set
+            cards = supabase.table("flashcards").select("id", count="exact").eq("set_id", s["id"]).execute()
+            s["card_count"] = cards.count if hasattr(cards, 'count') and cards.count else len(cards.data) if cards.data else 0
+            result_sets.append(s)
+        
+        return {"success": True, "sets": result_sets}
+    except Exception as e:
+        return {"success": False, "error": str(e), "sets": []}
+
+
+# ========================
+# COMMUNITY FUNCTIONS (Phase 8)
+# ========================
+
+"""
+SQL SQL SQL — Paleiskite šiuos sakinius Supabase SQL Editoriuje prieš pradedant:
+
+ALTER TABLE flashcard_sets ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
+ALTER TABLE flashcard_sets ADD COLUMN IF NOT EXISTS university TEXT;
+ALTER TABLE flashcard_sets ADD COLUMN IF NOT EXISTS course TEXT;
+ALTER TABLE flashcard_sets ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE flashcard_sets ADD COLUMN IF NOT EXISTS downloads_count INTEGER DEFAULT 0;
+
+CREATE POLICY "Vieši rinkiniai matomi visiems" 
+ON flashcard_sets FOR SELECT USING (is_public = true);
+
+CREATE POLICY "Viešos kortelės matomos visiems" 
+ON flashcards FOR SELECT USING (
+  EXISTS (SELECT 1 FROM flashcard_sets WHERE flashcard_sets.id = flashcards.set_id AND flashcard_sets.is_public = true)
+);
+"""
+
+def make_set_public(set_id: str, university: str, course: str, subject: str, is_public: bool = True):
+    """Make a set public or private with metadata"""
+    try:
+        supabase = get_supabase()
+        supabase.table("flashcard_sets").update({
+            "is_public": is_public,
+            "university": university,
+            "course": course,
+            "subject": subject
+        }).eq("id", set_id).execute()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def get_public_sets(query: str = None, university: str = None):
+    """Get public sets with optional filtering"""
+    try:
+        supabase = get_supabase()
+        builder = supabase.table("flashcard_sets").select("*, profiles(email)").eq("is_public", True)
+        
+        if university and university != "Visi":
+            builder = builder.eq("university", university)
+            
+        if query:
+            # Simple text search across name, course, subject
+            builder = builder.or_(f"name.ilike.%{query}%,course.ilike.%{query}%,subject.ilike.%{query}%")
+            
+        result = builder.order("downloads_count", desc=True).limit(50).execute()
+        return {"success": True, "sets": result.data}
+    except Exception as e:
+        return {"success": False, "error": str(e), "sets": []}
+
+
+def clone_public_set(set_id: str, user_id: str):
+    """Clone a public set and its cards to a user's account"""
+    try:
+        supabase = get_supabase()
+        
+        # 1. Get original set details
+        orig_set = supabase.table("flashcard_sets").select("*").eq("id", set_id).single().execute()
+        if not orig_set.data:
+            return {"success": False, "error": "Rinkinys nerastas"}
+            
+        # 2. Create new set for user
+        new_set = supabase.table("flashcard_sets").insert({
+            "user_id": user_id,
+            "name": f"{orig_set.data['name']} (Kopija)",
+            "is_public": False # Clones are private by default
+        }).execute()
+        new_set_id = new_set.data[0]["id"]
+        
+        # 3. Get original cards
+        orig_cards = supabase.table("flashcards").select("*").eq("set_id", set_id).execute()
+        
+        # 4. Insert cloned cards
+        cards_to_insert = [
+            {
+                "set_id": new_set_id,
+                "question": c["question"],
+                "answer": c["answer"],
+                "difficulty": 3,
+                "next_review": datetime.now().isoformat(),
+                "times_reviewed": 0
+            }
+            for c in orig_cards.data
+        ]
+        supabase.table("flashcards").insert(cards_to_insert).execute()
+        
+        # 5. Increment download count on original
+        supabase.rpc("increment_downloads", {"set_id_param": set_id}).execute()
+        # Fallback if RPC not defined:
+        current_downloads = orig_set.data.get('downloads_count', 0)
+        supabase.table("flashcard_sets").update({"downloads_count": current_downloads + 1}).eq("id", set_id).execute()
+        
+        return {"success": True, "new_set_id": new_set_id}
     except Exception as e:
         return {"success": False, "error": str(e)}
 # ========================

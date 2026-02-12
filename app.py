@@ -25,7 +25,8 @@ try:
         save_flashcard_set, load_user_flashcards, update_card_progress,
         get_cards_for_review, delete_flashcard_set,
         export_user_data, delete_user_account,
-        get_user_premium_status, set_user_premium_status, get_user_profile
+        get_user_premium_status, set_user_premium_status, get_user_profile,
+        make_set_public, get_public_sets, clone_public_set, get_user_sets
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
@@ -555,12 +556,12 @@ PAVYZDYS:
 ✅ Gerai: {{"klausimas": "Kokia pagrindinė fotosintezės funkcija augalams?", "atsakymas": "Paversti saulės energiją į cheminę (gliukozę) augimui."}}
 
 UŽDUOTIS:
-Sukurk {num_cards} flashcard'ų iš šio teksto {language} kalba.
+Sukuriame {num_cards} kortelių iš šio teksto {language} kalba.
 
 TEKSTAS:
 {text[:get_limit('chars')]}
 
-GRAŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
+GRĄŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
 [
   {{"klausimas": "...", "atsakymas": "..."}},
   {{"klausimas": "...", "atsakymas": "..."}}
@@ -956,7 +957,7 @@ with st.sidebar:
     with st.expander("Privatumo politika (BDAR)"):
         st.markdown("""
 <a name="privatumo-politika"></a>
-**FlashCards AI — Privatumo politika**
+**QUANTUM — Privatumo politika**
 *Atnaujinta: 2025-02-07*
 
 **1. Duomenų valdytojas**
@@ -1006,12 +1007,13 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
     st.markdown("Turite klausimų ar idėjų? [Parašykite mums](mailto:petrovic222@gmail.com)")
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📝 Naujos kortelės",
     "🧠 Mokymasis",
     "🎴 Peržiūra",
     "💾 Atsisiuntimas",
-    "💬 Paklausti AI"
+    "💬 Paklausti AI",
+    "👥 Bendruomenė"
 ])
 
 can_generate = st.session_state.flashcards_count < get_limit('daily')
@@ -1180,9 +1182,9 @@ with tab1:
                             prompt = f"""Tu esi ekspertas akademinis asistentas.
 
 Išanalizuok šią nuotrauką (tai gali būti užrašai, lenta, skaidrė ar vadovėlis).
-Sukurk {num_cards_img} flashcard'ų lietuvių kalba.
+Sukurk {num_cards_img} kortelių lietuvių kalba.
 
-GRAŽINK TIK JSON ARRAY formatu:
+GRĄŽINK TIK JSON ARRAY formatu:
 [
   {{"klausimas": "...", "atsakymas": "..."}}
 ]"""
@@ -1216,82 +1218,282 @@ GRAŽINK TIK JSON ARRAY formatu:
 # ==================
 with tab2:
     st.header("🧠 Mokymasis")
-    st.markdown("**Kartok protingai** — sistema parinks, kurias korteles laikas pakartoti")
 
-    today_cards = get_today_cards()
-    total_study_cards = len(st.session_state.study_cards)
-
-    col_stat1, col_stat2, col_stat3 = st.columns(3)
-    with col_stat1:
-        st.metric("Visos kortelės", total_study_cards)
-    with col_stat2:
-        st.metric("Šiandien kartoti", len(today_cards))
-    with col_stat3:
-        mastered = sum(1 for c in st.session_state.study_cards.values() if c.get('difficulty', 3) >= 4)
-        st.metric("Įsisavintos", mastered)
+    study_mode = st.radio(
+        "Pasirinkite mokymosi režimą:",
+        ["Kartojimas", "Egzaminas"],
+        horizontal=True,
+        key="study_mode_radio",
+        label_visibility="collapsed"
+    )
 
     st.divider()
 
-    if not st.session_state.study_cards:
-        st.info("Kol kas neturite kortelių. Sukurkite jas 'Naujos kortelės' skiltyje!")
+    if study_mode == "Kartojimas":
+        # === SPACED REPETITION (original code) ===
+        st.markdown("**Kartok protingai** — sistema parinks, kurias korteles laikas pakartoti")
 
-        st.subheader("Kaip tai veikia?")
-        st.markdown("""
-        1. **Sukuriate korteles** — jos iškart patenka į mokymosi planą
-        2. **Atsakote teisingai** — kortelė rodoma vis rečiau (nes jau mokate!)
-        3. **Atsakote neteisingai** — kortelė grįžta kartoti dažniau
-        4. **Įsisavinote** — kortelė kartojama tik kas 2 savaites
-        """)
-    elif not today_cards:
-        st.success("Puiku! Šiandien viskas pakartota. Grįžkite rytoj!")
+        today_cards = get_today_cards()
+        total_study_cards = len(st.session_state.study_cards)
 
-        st.subheader("Jūsų progresas")
-        for card_id, card_data in list(st.session_state.study_cards.items())[:5]:
-            difficulty = card_data.get('difficulty', 3)
-            level = ["", "Naujas", "Pradžia", "Vidutinis", "Gerai moku", "Įsisavinta"][min(difficulty, 5)]
-            st.markdown(f"**{html.escape(card_data['question'][:50])}...** — {level}")
-    else:
-        card_data = today_cards[0]
-        card_id = card_data['id']
+        col_stat1, col_stat2, col_stat3 = st.columns(3)
+        with col_stat1:
+            st.metric("Visos kortelės", total_study_cards)
+        with col_stat2:
+            st.metric("Šiandien kartoti", len(today_cards))
+        with col_stat3:
+            mastered = sum(1 for c in st.session_state.study_cards.values() if c.get('difficulty', 3) >= 4)
+            st.metric("Įsisavintos", mastered)
 
-        st.subheader(f"Kortelė {1}/{len(today_cards)}")
+        st.divider()
 
-        st.markdown(f"""
-        <div class="study-card study-card-q">
-            <h3>{html.escape(card_data['question'])}</h3>
-        </div>
-        """, unsafe_allow_html=True)
+        if not st.session_state.study_cards:
+            st.info("Kol kas neturite kortelių. Sukurkite jas 'Naujos kortelės' skiltyje!")
 
-        if st.button("👁️ Rodyti atsakymą", type="primary", use_container_width=True):
-            st.session_state.show_answer = True
+            st.subheader("Kaip tai veikia?")
+            st.markdown("""
+            1. **Sukuriate korteles** — jos iškart patenka į mokymosi planą
+            2. **Atsakote teisingai** — kortelė rodoma vis rečiau (nes jau mokate!)
+            3. **Atsakote neteisingai** — kortelė grįžta kartoti dažniau
+            4. **Įsisavinote** — kortelė kartojama tik kas 2 savaites
+            """)
+        elif not today_cards:
+            st.success("Puiku! Šiandien viskas pakartota. Grįžkite rytoj!")
 
-        if st.session_state.show_answer:
+            st.subheader("Jūsų progresas")
+            for card_id, card_data in list(st.session_state.study_cards.items())[:5]:
+                difficulty = card_data.get('difficulty', 3)
+                level = ["", "Naujas", "Pradžia", "Vidutinis", "Gerai moku", "Įsisavinta"][min(difficulty, 5)]
+                st.markdown(f"**{html.escape(card_data['question'][:50])}...** — {level}")
+        else:
+            card_data = today_cards[0]
+            card_id = card_data['id']
+
+            st.subheader(f"Kortelė {1}/{len(today_cards)}")
+
             st.markdown(f"""
-            <div class="study-card study-card-a">
-                <h3>{html.escape(card_data['answer'])}</h3>
+            <div class="study-card study-card-q">
+                <h3>{html.escape(card_data['question'])}</h3>
             </div>
             """, unsafe_allow_html=True)
 
-            st.markdown("### Kaip sekėsi?")
-            col1, col2, col3 = st.columns(3)
+            if st.button("👁️ Rodyti atsakymą", type="primary", use_container_width=True):
+                st.session_state.show_answer = True
 
-            with col1:
-                if st.button("😰 Sunku", use_container_width=True):
-                    update_card_difficulty(card_id, 1)
-                    st.session_state.show_answer = False
+            if st.session_state.show_answer:
+                st.markdown(f"""
+                <div class="study-card study-card-a">
+                    <h3>{html.escape(card_data['answer'])}</h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("### Kaip sekėsi?")
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    if st.button("😰 Sunku", use_container_width=True):
+                        update_card_difficulty(card_id, 1)
+                        st.session_state.show_answer = False
+                        st.rerun()
+
+                with col2:
+                    if st.button("🤔 Vidutiniškai", use_container_width=True):
+                        update_card_difficulty(card_id, 3)
+                        st.session_state.show_answer = False
+                        st.rerun()
+
+                with col3:
+                    if st.button("😎 Lengva", use_container_width=True):
+                        update_card_difficulty(card_id, 5)
+                        st.session_state.show_answer = False
+                        st.rerun()
+
+    else:
+        # === EGZAMINO REŽIMAS ===
+
+        if not st.session_state.flashcards:
+            st.info("Norėdami pradėti egzaminą, pirmiausia susikurkite kortelių!")
+
+        elif st.session_state.exam_finished:
+            # ---- REZULTATŲ EKRANAS ----
+            st.subheader("Egzamino rezultatai")
+
+            results = st.session_state.exam_results
+            correct = sum(1 for r in results if r['correct'])
+            total = len(results)
+            percent = (correct / total) * 100 if total > 0 else 0
+
+            # Time taken
+            elapsed = int(time.time() - st.session_state.exam_start_time) if st.session_state.exam_start_time else 0
+            time_str = f"{elapsed // 60} min {elapsed % 60} sek"
+
+            # Color-coded progress
+            if percent >= 80:
+                bar_color = "green"
+                grade_text = "Puikiai!"
+            elif percent >= 50:
+                bar_color = "orange"
+                grade_text = "Neblogai, bet galima geriau"
+            else:
+                bar_color = "red"
+                grade_text = "Reikia daugiau praktikos"
+
+            st.markdown(f"""
+            <div style="text-align:center; padding: 20px; border-radius: 15px;
+                        background: linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1));
+                        border: 2px solid {bar_color};">
+                <h1 style="color: {bar_color}; margin: 0;">{correct}/{total}</h1>
+                <h2 style="color: {bar_color}; margin: 4px 0;">{percent:.0f}%</h2>
+                <p style="color: #8b949e; margin: 4px 0;">{grade_text}</p>
+                <p style="color: #8b949e; margin: 4px 0;">Laikas: {time_str}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.progress(percent / 100)
+
+            # Weak spots
+            weak_spots = [r['card'] for r in results if not r['correct']]
+            if weak_spots:
+                st.divider()
+                with st.expander(f"Silpnos vietos ({len(weak_spots)} kortelės)", expanded=True):
+                    for card in weak_spots:
+                        st.markdown(f"**{html.escape(card['klausimas'])}**")
+                        st.caption(f"Atsakymas: {html.escape(card['atsakymas'])}")
+            else:
+                st.balloons()
+                st.success("Tobula! Visos atsakytos teisingai!")
+
+            st.divider()
+            bcol1, bcol2 = st.columns(2)
+            with bcol1:
+                if st.button("Bandyti dar kartą", type="primary", use_container_width=True, key="exam_retry"):
+                    st.session_state.exam_finished = False
+                    st.session_state.exam_active = False
+                    st.rerun()
+            with bcol2:
+                if st.button("Grįžti į kartojimą", use_container_width=True, key="exam_back"):
+                    st.session_state.exam_finished = False
+                    st.session_state.exam_active = False
                     st.rerun()
 
-            with col2:
-                if st.button("🤔 Vidutiniškai", use_container_width=True):
-                    update_card_difficulty(card_id, 3)
-                    st.session_state.show_answer = False
-                    st.rerun()
+        elif not st.session_state.exam_active:
+            # ---- PRADŽIOS EKRANAS ----
+            total_available = len(st.session_state.flashcards)
+            st.markdown(f"Turite **{total_available}** kortelių. Pasirinkite egzamino nustatymus:")
 
-            with col3:
-                if st.button("😎 Lengva", use_container_width=True):
-                    update_card_difficulty(card_id, 5)
-                    st.session_state.show_answer = False
+            exam_count = st.select_slider(
+                "Klausimų skaičius:",
+                options=[n for n in [5, 10, 15, 20] if n <= total_available] or [total_available],
+                value=min(10, total_available),
+                key="exam_count_slider"
+            )
+
+            use_timer = st.checkbox("Su laiko limitu", key="exam_use_timer")
+            time_limit_minutes = None
+            if use_timer:
+                time_limit_minutes = st.select_slider(
+                    "Laiko limitas:",
+                    options=[5, 10, 15],
+                    value=10,
+                    format_func=lambda x: f"{x} min",
+                    key="exam_time_slider"
+                )
+
+            st.markdown("""
+            - Klausimai pateikiami atsitiktine tvarka
+            - Pabaigoje pamatysite balą ir silpnas vietas
+            """)
+
+            if st.button("Pradėti egzaminą", type="primary", use_container_width=True, key="exam_start"):
+                all_cards = list(st.session_state.flashcards)
+                random.shuffle(all_cards)
+                st.session_state.exam_cards = all_cards[:exam_count]
+                st.session_state.exam_total = exam_count
+                st.session_state.exam_active = True
+                st.session_state.exam_finished = False
+                st.session_state.exam_current_idx = 0
+                st.session_state.exam_results = []
+                st.session_state.exam_show_answer = False
+                st.session_state.exam_start_time = time.time()
+                st.session_state.exam_time_limit = (time_limit_minutes * 60) if time_limit_minutes else None
+                st.rerun()
+
+        else:
+            # ---- EGZAMINO EIGA ----
+            idx = st.session_state.exam_current_idx
+            cards = st.session_state.exam_cards
+            total = len(cards)
+            elapsed = int(time.time() - st.session_state.exam_start_time)
+            time_limit = st.session_state.exam_time_limit
+
+            # Check time limit
+            if time_limit and elapsed >= time_limit:
+                st.session_state.exam_finished = True
+                st.session_state.exam_active = False
+                st.rerun()
+
+            # Header: progress + timer
+            hcol1, hcol2 = st.columns([3, 1])
+            with hcol1:
+                st.progress((idx + 1) / total)
+                st.caption(f"Klausimas {idx + 1} iš {total}")
+            with hcol2:
+                if time_limit:
+                    remaining = max(0, time_limit - elapsed)
+                    r_min = remaining // 60
+                    r_sec = remaining % 60
+                    color = "red" if remaining < 60 else "#8b949e"
+                    st.markdown(f"<p style='text-align:right; color:{color}; font-size:1.3em; font-weight:bold;'>{r_min:02d}:{r_sec:02d}</p>", unsafe_allow_html=True)
+                else:
+                    st.metric("Laikas", f"{elapsed // 60:02d}:{elapsed % 60:02d}")
+
+            # Question card
+            card = cards[idx]
+            st.markdown(f"""
+            <div class="study-card study-card-q">
+                <h3>{html.escape(card['klausimas'])}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if not st.session_state.exam_show_answer:
+                if st.button("Rodyti atsakymą", type="primary", use_container_width=True, key="exam_show"):
+                    st.session_state.exam_show_answer = True
                     st.rerun()
+            else:
+                st.markdown(f"""
+                <div class="study-card study-card-a">
+                    <h3>{html.escape(card['atsakymas'])}</h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("### Ar žinojote atsakymą?")
+                rcol1, rcol2 = st.columns(2)
+                with rcol1:
+                    if st.button("Žinojau", use_container_width=True, key="exam_correct"):
+                        st.session_state.exam_results.append({"card": card, "correct": True})
+                        if idx + 1 < total:
+                            st.session_state.exam_current_idx += 1
+                            st.session_state.exam_show_answer = False
+                        else:
+                            st.session_state.exam_finished = True
+                            st.session_state.exam_active = False
+                        st.rerun()
+                with rcol2:
+                    if st.button("Nežinojau", use_container_width=True, key="exam_wrong"):
+                        st.session_state.exam_results.append({"card": card, "correct": False})
+                        if idx + 1 < total:
+                            st.session_state.exam_current_idx += 1
+                            st.session_state.exam_show_answer = False
+                        else:
+                            st.session_state.exam_finished = True
+                            st.session_state.exam_active = False
+                        st.rerun()
+
+            st.divider()
+            if st.button("Nutraukti egzaminą", key="exam_cancel"):
+                st.session_state.exam_active = False
+                st.session_state.exam_finished = False
+                st.rerun()
 
 # ==================
 # TAB 3: PERŽIŪRA
@@ -1562,4 +1764,183 @@ ATSAKYMAS:"""
             if st.button("🗑️ Išvalyti pokalbį"):
                 st.session_state.chat_messages = []
                 st.rerun()
+
+# ==================
+# TAB 6: BENDRUOMENĖ
+# ==================
+with tab6:
+    st.header("👥 Bendruomenė")
+    st.caption("Naršykite kitų studentų korteles arba pasidalinkite savomis")
+
+    community_mode = st.radio(
+        "Režimas:",
+        ["🔍 Naršyti", "📤 Publikuoti"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="community_mode"
+    )
+
+    st.divider()
+
+    if community_mode == "🔍 Naršyti":
+        # === BROWSING SECTION ===
+        st.subheader("🔍 Raskite kortelių rinkinius")
+
+        search_col1, search_col2 = st.columns([3, 1])
+        with search_col1:
+            search_query = st.text_input(
+                "Paieška:",
+                placeholder="Pvz. Anatomija, Matematika, Programavimas...",
+                key="community_search"
+            )
+        with search_col2:
+            uni_filter = st.selectbox(
+                "Universitetas:",
+                ["Visi", "VU", "KTU", "VGTU", "VDU", "KU", "MRU", "LSU", "Kita"],
+                key="community_uni"
+            )
+
+        if SUPABASE_AVAILABLE:
+            result = get_public_sets(
+                query=search_query if search_query else None,
+                university=uni_filter if uni_filter != "Visi" else None
+            )
+
+            if result['success'] and result['sets']:
+                st.caption(f"Rasta {len(result['sets'])} rinkinių")
+
+                for pub_set in result['sets']:
+                    set_name = pub_set.get('name', 'Be pavadinimo')
+                    set_uni = pub_set.get('university', '')
+                    set_course = pub_set.get('course', '')
+                    set_subject = pub_set.get('subject', '')
+                    downloads = pub_set.get('downloads_count', 0)
+                    set_id = pub_set.get('id')
+
+                    # Author email (partial, for privacy)
+                    author_info = pub_set.get('profiles', {})
+                    author_email = author_info.get('email', '') if isinstance(author_info, dict) else ''
+                    if author_email:
+                        parts = author_email.split('@')
+                        author_display = f"{parts[0][:3]}***@{parts[1]}" if len(parts) == 2 else ''
+                    else:
+                        author_display = ''
+
+                    # Card label
+                    label_parts = [f"**{html.escape(set_name)}**"]
+                    if set_uni:
+                        label_parts.append(f"🏛️ {set_uni}")
+                    if set_course:
+                        label_parts.append(f"📚 {set_course}")
+                    label = " · ".join(label_parts)
+
+                    with st.expander(label):
+                        info_col1, info_col2, info_col3 = st.columns(3)
+                        with info_col1:
+                            st.caption(f"🏛️ {set_uni or 'Nenurodyta'}")
+                        with info_col2:
+                            st.caption(f"📖 {set_subject or 'Nenurodyta'}")
+                        with info_col3:
+                            st.caption(f"⬇️ {downloads} atsisiuntimų")
+
+                        if author_display:
+                            st.caption(f"👤 {author_display}")
+
+                        # Clone button
+                        if st.session_state.user:
+                            if st.button("📥 Kopijuoti į savo", key=f"clone_{set_id}", use_container_width=True, type="primary"):
+                                with st.spinner("Kopijuojama..."):
+                                    clone_result = clone_public_set(set_id, st.session_state.user['id'])
+                                    if clone_result.get('success'):
+                                        sync_flashcards_from_supabase(st.session_state.user['id'])
+                                        st.success("✅ Rinkinys nukopijuotas į jūsų paskyrą!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Nepavyko nukopijuoti: {clone_result.get('error', 'Nežinoma klaida')}")
+                        else:
+                            st.info("💡 Prisijunkite, kad galėtumėte kopijuoti rinkinius")
+
+            elif result['success'] and not result['sets']:
+                st.info("🔍 Nerasta jokių viešų rinkinių. Būkite pirmieji — publikuokite savo!")
+            else:
+                st.warning("Nepavyko prisijungti prie bendruomenės. Bandykite vėliau.")
+        else:
+            st.warning("Bendruomenės funkcija reikalauja Supabase prisijungimo.")
+
+    else:
+        # === PUBLISHING SECTION ===
+        st.subheader("📤 Publikuokite savo rinkinius")
+
+        if not st.session_state.user:
+            st.info("💡 Prisijunkite, kad galėtumėte publikuoti savo korteles bendruomenei.")
+        elif not SUPABASE_AVAILABLE:
+            st.warning("Publikavimui reikia Supabase prisijungimo.")
+        else:
+            user_sets_result = get_user_sets(st.session_state.user['id'])
+
+            if user_sets_result['success'] and user_sets_result['sets']:
+                user_sets = user_sets_result['sets']
+
+                set_options = [
+                    f"{s['name']} ({s.get('card_count', '?')} kort.) {'✅ Viešas' if s.get('is_public') else ''}"
+                    for s in user_sets
+                ]
+
+                selected_set_idx = st.selectbox(
+                    "Pasirinkite rinkinį:",
+                    range(len(set_options)),
+                    format_func=lambda x: set_options[x],
+                    key="publish_set_select"
+                )
+
+                selected_set = user_sets[selected_set_idx]
+
+                if selected_set.get('is_public'):
+                    st.success(f"✅ Šis rinkinys jau viešas ({selected_set.get('university', '')}, {selected_set.get('course', '')})")
+                    if st.button("🔒 Padaryti privatų", key="make_private", use_container_width=True):
+                        make_set_public(selected_set['id'], '', '', '', is_public=False)
+                        st.success("Rinkinys dabar privatus.")
+                        st.rerun()
+                else:
+                    st.markdown("Užpildykite informaciją, kad kiti studentai galėtų lengvai rasti jūsų korteles:")
+
+                    pub_col1, pub_col2 = st.columns(2)
+                    with pub_col1:
+                        pub_university = st.selectbox(
+                            "🏛️ Universitetas:",
+                            ["VU", "KTU", "VGTU", "VDU", "KU", "MRU", "LSU", "Kita"],
+                            key="pub_uni"
+                        )
+                        pub_course = st.text_input(
+                            "📚 Kursas / Modulis:",
+                            placeholder="Pvz. Žmogaus anatomija",
+                            key="pub_course"
+                        )
+                    with pub_col2:
+                        pub_subject = st.text_input(
+                            "📖 Dalykas / Tema:",
+                            placeholder="Pvz. Kaulų sistema",
+                            key="pub_subject"
+                        )
+
+                    if st.button("🚀 Publikuoti bendruomenei", type="primary", use_container_width=True, key="publish_btn"):
+                        if not pub_course:
+                            st.warning("Nurodykite bent kursą / modulį")
+                        else:
+                            with st.spinner("Publikuojama..."):
+                                pub_result = make_set_public(
+                                    selected_set['id'],
+                                    pub_university,
+                                    pub_course,
+                                    pub_subject or '',
+                                    is_public=True
+                                )
+                                if pub_result.get('success'):
+                                    st.success("🎉 Jūsų rinkinys dabar viešas! Kiti studentai galės jį rasti bendruomenėje.")
+                                    st.balloons()
+                                    st.rerun()
+                                else:
+                                    st.error("Nepavyko publikuoti. Bandykite dar kartą.")
+            else:
+                st.info("Kol kas neturite rinkinių. Sukurkite korteles ir galėsite dalintis!")
 
