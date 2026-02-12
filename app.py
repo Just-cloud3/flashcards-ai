@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from PIL import Image
 from io import BytesIO
+from streamlit_js_eval import streamlit_js_eval
 
 # Supabase integration
 try:
@@ -274,6 +275,23 @@ if 'chat_card_context' not in st.session_state:
     st.session_state.chat_card_context = None
 if 'user' not in st.session_state:
     st.session_state.user = None
+    # Try to restore login from browser localStorage
+    stored_user = streamlit_js_eval(js_expressions="localStorage.getItem('quantum_user')")
+    if stored_user and stored_user != 'null':
+        try:
+            user_data = json.loads(stored_user)
+            if user_data and user_data.get('id') and user_data.get('email'):
+                st.session_state.user = user_data
+                # Restore premium status
+                if SUPABASE_AVAILABLE:
+                    profile = get_user_profile(user_data['id'])
+                    st.session_state.is_premium = profile.get('is_premium', False)
+                    st.session_state.subscription_id = profile.get('subscription_id')
+                # Load flashcards
+                sync_flashcards_from_supabase(user_data['id'])
+                st.rerun()
+        except (json.JSONDecodeError, Exception):
+            pass  # Invalid stored data, ignore
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = 'login'
 
@@ -720,6 +738,8 @@ with st.sidebar:
                     st.session_state.user = None
                     st.session_state.flashcards = []
                     st.session_state.study_cards = {}
+                    # Clear localStorage
+                    streamlit_js_eval(js_expressions="localStorage.removeItem('quantum_user')")
                     st.rerun()
 
             # BDAR: Data export + Account deletion
@@ -845,6 +865,9 @@ with st.sidebar:
 
                             # Load user's flashcards and study history
                             sync_flashcards_from_supabase(st.session_state.user['id'])
+                            # Save login to browser localStorage
+                            user_json = json.dumps(st.session_state.user)
+                            streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
                             st.success("Sveiki sugrįžę!")
                             st.rerun()
                         else:

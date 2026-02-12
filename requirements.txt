@@ -7,3 +7,4 @@ Pillow>=10.0.0
 gTTS>=2.4.0
 supabase>=2.0.0
 stripe>=7.0.0
+streamlit-js-eval>=1.0.0
