@@ -39,7 +39,8 @@ except ImportError:
 try:
     from stripe_integration import (
         create_checkout_session, verify_stripe_session,
-        cancel_subscription, get_subscription_status
+        cancel_subscription, get_subscription_status,
+        create_billing_portal
     )
     STRIPE_AVAILABLE = True
 except ImportError:
@@ -913,6 +914,16 @@ with st.sidebar:
                             end_date = datetime.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
                             st.caption(f"Premium galios iki {end_date}")
                         else:
+                            # Billing Portal button
+                            profile = get_user_profile(st.session_state.user['id'])
+                            cust_id = profile.get('stripe_customer_id')
+                            if cust_id:
+                                if st.button("⚙️ Valdyti prenumeratą", use_container_width=True):
+                                    portal = create_billing_portal(cust_id)
+                                    if portal.get('url'):
+                                        st.link_button("Atidaryti billing portalą", portal['url'], use_container_width=True)
+                                    else:
+                                        st.error("Nepavyko atidaryti portalo.")
                             if st.button("Atšaukti prenumeratą", use_container_width=True):
                                 result = cancel_subscription(sub_id)
                                 if result.get('success'):

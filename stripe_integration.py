@@ -96,3 +96,20 @@ def get_subscription_status(subscription_id):
         }
     except Exception:
         return None
+
+
+def create_billing_portal(customer_id):
+    """Create a Stripe Billing Portal session for managing subscription.
+    Customer can: update payment, cancel, view invoices."""
+    if not stripe.api_key or not customer_id:
+        return {"error": "Nėra customer ID"}
+
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=APP_BASE_URL,
+        )
+        return {"url": session.url}
+    except Exception as e:
+        return {"error": str(e)}
+
