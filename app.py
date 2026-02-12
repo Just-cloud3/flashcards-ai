@@ -686,58 +686,13 @@ if st.session_state.generation_success > 0:
     st.success(f"Paruošta {st.session_state.generation_success} kortelių! Galite pradėti mokytis.")
     st.session_state.generation_success = 0
 
-# Main UI Logic
-if not st.session_state.user:
-    # LANDING PAGE FOR GUESTS
-    st.markdown("""
-    <div style="text-align: center; padding: 40px 20px;">
-        <h1 style="font-size: 3.5rem; background: linear-gradient(45deg, #00f2ff, #0060ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">QUANTUM</h1>
-        <p style="font-size: 1.5rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
-            Ateities intelektas tavo kortelėse. Kurk, mokykis ir įsisavink žinias rekordiniu greičiu.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("""
-        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="color: #00f2ff;">⚡ Greitis</h3>
-            <p style="color: #8b949e;">Sukurk 10 kortelių iš bet kokio teksto ar PDF per 5 sekundes.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown("""
-        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="color: #00f2ff;">🧠 Intelektas</h3>
-            <p style="color: #8b949e;">Gemini 2.0 technologija užtikrina aukščiausią klausimų kokybę.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown("""
-        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="color: #00f2ff;">🎯 Rezultatai</h3>
-            <p style="color: #8b949e;">Spaced Repetition sistema padės viską prisiminti visam laikui.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.info("💡 **Norėdami pradėti, prisijunkite arba registruokitės kairėje pusėje esančiame meniu.**")
-    
-    # Showcase Image or Feature preview could go here
-    st.image("assets/logo.png", width=300) # Smaller logo at bottom for flair
-    
-    st.stop() # Prevents guests from seeing the technical tabs below
-
-# Sidebar
+# Sidebar (rendered BEFORE guest check so mobile users see login form)
 with st.sidebar:
     # Logo & Brand
     st.image("assets/logo.png", use_container_width=True)
     st.markdown("<h2 style='text-align: center; color: #00f2ff; margin-top: -10px;'>QUANTUM</h2>", unsafe_allow_html=True)
     st.caption("<p style='text-align: center;'>Ateities mokymosi platforma</p>", unsafe_allow_html=True)
     
-    st.divider()
-
     st.divider()
     
     # ==================
@@ -1005,6 +960,48 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
 
     st.markdown("---")
     st.markdown("Turite klausimų ar idėjų? [Parašykite mums](mailto:petrovic222@gmail.com)")
+
+# Main UI Logic
+if not st.session_state.user:
+    # LANDING PAGE FOR GUESTS
+    st.markdown("""
+    <div style="text-align: center; padding: 40px 20px;">
+        <h1 style="font-size: 3.5rem; background: linear-gradient(45deg, #00f2ff, #0060ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">QUANTUM</h1>
+        <p style="font-size: 1.5rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
+            Ateities intelektas tavo kortelėse. Kurk, mokykis ir įsisavink žinias rekordiniu greičiu.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="color: #00f2ff;">⚡ Greitis</h3>
+            <p style="color: #8b949e;">Sukurk 10 kortelių iš bet kokio teksto ar PDF per 5 sekundes.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="color: #00f2ff;">🧠 Intelektas</h3>
+            <p style="color: #8b949e;">Gemini 2.0 technologija užtikrina aukščiausią klausimų kokybę.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="color: #00f2ff;">🎯 Rezultatai</h3>
+            <p style="color: #8b949e;">Spaced Repetition sistema padės viską prisiminti visam laikui.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("💡 **Norėdami pradėti, atidarykite meniu ☰ viršuje kairėje ir prisijunkite.**")
+    
+    st.image("assets/logo.png", width=300)
+    
+    st.stop() # Prevents guests from seeing the technical tabs below
 
 # Main tabs
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
