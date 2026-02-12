@@ -27,7 +27,8 @@ try:
         get_cards_for_review, delete_flashcard_set,
         export_user_data, delete_user_account,
         get_user_premium_status, set_user_premium_status, get_user_profile,
-        make_set_public, get_public_sets, clone_public_set, get_user_sets
+        make_set_public, get_public_sets, clone_public_set, get_user_sets,
+        change_password, change_email, update_display_name, reset_password
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
@@ -294,6 +295,21 @@ if 'user' not in st.session_state:
             pass  # Invalid stored data, ignore
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = 'login'
+if 'last_activity' not in st.session_state:
+    st.session_state.last_activity = time.time()
+
+# Auto-logout after 30 minutes of inactivity
+SESSION_TIMEOUT = 30 * 60  # 30 minutes in seconds
+if st.session_state.user:
+    if time.time() - st.session_state.last_activity > SESSION_TIMEOUT:
+        st.session_state.user = None
+        st.session_state.flashcards = []
+        st.session_state.study_cards = {}
+        streamlit_js_eval(js_expressions="localStorage.removeItem('quantum_user')")
+        st.toast("⏰ Sesija baigėsi dėl neaktyvumo. Prisijunkite iš naujo.")
+        st.rerun()
+    else:
+        st.session_state.last_activity = time.time()
 
 # Exam session state
 if 'exam_active' not in st.session_state:
@@ -880,6 +896,19 @@ with st.sidebar:
                                 st.error("Prisijungti nepavyko. Patikrinkite duomenis ir bandykite dar kartą.")
                     else:
                         st.warning("Įveskite el. paštą ir slaptažodį")
+                
+                # Forgot password
+                if st.button("🔑 Pamiršau slaptažodį", use_container_width=True):
+                    if email:
+                        try:
+                            from supabase_client import get_supabase
+                            supabase = get_supabase()
+                            supabase.auth.reset_password_email(email)
+                            st.success("✅ Slaptažodžio atnaujinimo nuoroda išsiųsta į jūsų el. paštą!")
+                        except Exception:
+                            st.error("Nepavyko išsiųsti. Patikrinkite el. pašto adresą.")
+                    else:
+                        st.warning("Pirmiausia įveskite savo el. pašto adresą viršuje.")
             else:
                 gdpr_consent = st.checkbox(
                     "Sutinku su [Privatumo politika](#privatumo-politika) ir duomenų tvarkymu (BDAR)",

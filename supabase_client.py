@@ -68,6 +68,49 @@ def get_current_user():
         return None
 
 
+def change_password(new_password: str):
+    """Change password for the currently logged-in user"""
+    try:
+        supabase = get_supabase()
+        supabase.auth.update_user({"password": new_password})
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def change_email(new_email: str):
+    """Change email for the currently logged-in user (requires confirmation)"""
+    try:
+        supabase = get_supabase()
+        supabase.auth.update_user({"email": new_email})
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def update_display_name(user_id: str, display_name: str):
+    """Update user's display name in profiles table"""
+    try:
+        supabase = get_supabase()
+        supabase.table("profiles").upsert({
+            "id": user_id,
+            "display_name": display_name
+        }).execute()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def reset_password(email: str):
+    """Send password reset email"""
+    try:
+        supabase = get_supabase()
+        supabase.auth.reset_password_email(email)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ========================
 # FLASHCARD FUNCTIONS
 # ========================
