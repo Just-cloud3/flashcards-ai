@@ -1165,8 +1165,7 @@ if not st.session_state.user:
         st.image("assets/logo.png", use_container_width=True)
     
     st.markdown("""
-    <div style="text-align: center; padding: 10px 20px 40px 20px;">
-        <h1 style="font-size: 3.5rem; background: linear-gradient(45deg, #00f2ff, #0060ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: -20px;">QUANTUM</h1>
+    <div style="text-align: center; padding: 0px 20px 40px 20px;">
         <p style="font-size: 1.5rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
             Ateities intelektas tavo kortelėse. Kurk, mokykis ir įsisavink žinias rekordiniu greičiu.
         </p>
