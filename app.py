@@ -70,6 +70,14 @@ MAX_INPUT_CHARS_FREE = 50000
 MAX_TRANSCRIPT_CHARS_FREE = 50000
 MAX_PREMIUM_CHARS = 200000   # 💎 Premium: viso skyriaus ar knygos lygis
 
+# Admin
+ADMIN_EMAILS = {"petrovic222@gmail.com"}
+
+def is_admin():
+    """Check if current user is admin"""
+    user = st.session_state.get('user')
+    return user and user.get('email', '').lower() in ADMIN_EMAILS
+
 def get_limit(limit_type):
     """Return limit based on premium status"""
     is_premium = st.session_state.get('is_premium', False)
@@ -572,7 +580,7 @@ def parse_flashcards_json(content):
 def generate_flashcards_from_text(text, num_cards=10, language="lietuvių", api_key=None):
     """Generate flashcards using Gemini API"""
     if not api_key:
-        st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
+        st.error("API raktas nenustatytas. Susisiekite su administratoriumi arba bandykite vėliau.")
         return []
 
     try:
@@ -1017,32 +1025,37 @@ with st.sidebar:
             st.caption("💡 Prisijungę kortelės bus pasiekiamos iš bet kurio įrenginio")
     
     st.divider()
-    st.header("Nustatymai")
 
-    st.markdown("""**Kaip pradėti naudoti?**
+    # API key: admin sees input, regular users use server key
+    if is_admin():
+        st.header("Nustatymai")
+        st.markdown("""**Kaip pradėti naudoti?**
 1. Eik į [aistudio.google.com](https://aistudio.google.com/apikey)
 2. Prisijunk su Google paskyra
 3. Paspausk 'Create API key'
 4. Nukopijuok ir įklijuok čia""")
 
-    api_key = st.text_input(
-        "API raktas",
-        value=os.getenv("GEMINI_API_KEY", ""),
-        type="password",
-        placeholder="Įklijuokite raktą čia..."
-    )
+        api_key = st.text_input(
+            "API raktas",
+            value=os.getenv("GEMINI_API_KEY", ""),
+            type="password",
+            placeholder="Įklijuokite raktą čia..."
+        )
+    else:
+        api_key = os.getenv("GEMINI_API_KEY", "")
 
     st.divider()
 
-    st.subheader("Šiandienos progresas")
-    current_limit = get_limit('daily')
-    remaining = max(0, current_limit - st.session_state.flashcards_count)
-    progress = min(st.session_state.flashcards_count / current_limit, 1.0)
-    st.progress(progress)
-    st.caption(f"Sukurta {st.session_state.flashcards_count} iš {current_limit} kortelių")
+    if is_admin():
+        st.subheader("Šiandienos progresas")
+        current_limit = get_limit('daily')
+        remaining = max(0, current_limit - st.session_state.flashcards_count)
+        progress = min(st.session_state.flashcards_count / current_limit, 1.0)
+        st.progress(progress)
+        st.caption(f"Sukurta {st.session_state.flashcards_count} iš {current_limit} kortelių")
 
-    if remaining == 0 and not st.session_state.is_premium:
-        st.warning("Dienos limitas pasiektas. Tapkite Premium nariu ir kurkite neribotai!")
+        if remaining == 0 and not st.session_state.is_premium:
+            st.warning("Dienos limitas pasiektas. Tapkite Premium nariu ir kurkite neribotai!")
 
     # 🔥 Streak display
     if st.session_state.user and SUPABASE_AVAILABLE:
@@ -1147,9 +1160,13 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
 # Main UI Logic
 if not st.session_state.user:
     # LANDING PAGE FOR GUESTS
+    col_l1, col_l2, col_l3 = st.columns([1,1,1])
+    with col_l2:
+        st.image("assets/logo.png", use_container_width=True)
+    
     st.markdown("""
-    <div style="text-align: center; padding: 40px 20px;">
-        <h1 style="font-size: 3.5rem; background: linear-gradient(45deg, #00f2ff, #0060ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">QUANTUM</h1>
+    <div style="text-align: center; padding: 10px 20px 40px 20px;">
+        <h1 style="font-size: 3.5rem; background: linear-gradient(45deg, #00f2ff, #0060ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: -20px;">QUANTUM</h1>
         <p style="font-size: 1.5rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
             Ateities intelektas tavo kortelėse. Kurk, mokykis ir įsisavink žinias rekordiniu greičiu.
         </p>
@@ -1181,8 +1198,6 @@ if not st.session_state.user:
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.info("💡 **Norėdami pradėti, atidarykite meniu ☰ viršuje kairėje ir prisijunkite.**")
-    
-    st.image("assets/logo.png", width=300)
     
     st.stop() # Prevents guests from seeing the technical tabs below
 
@@ -1231,7 +1246,7 @@ with tab1:
             st.write("")  # spacing
             if st.button("🎯 Generuoti korteles", type="primary", disabled=not input_text or not can_generate, use_container_width=True):
                 if not api_key:
-                    st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
+                    st.error("API raktas nenustatytas. Susisiekite su administratoriumi arba bandykite vėliau.")
                 else:
                     with st.spinner("Kuriamos kortelės..."):
                         cards = generate_flashcards_from_text(input_text, num_cards, language, api_key)
@@ -1257,7 +1272,7 @@ with tab1:
 
                 if st.button("🎯 Generuoti iš PDF", type="primary", disabled=not can_generate, use_container_width=True):
                     if not api_key:
-                        st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
+                        st.error("API raktas nenustatytas. Susisiekite su administratoriumi arba bandykite vėliau.")
                     else:
                         with st.spinner("Kuriamos kortelės iš PDF..."):
                             cards = generate_flashcards_from_text(pdf_text, num_cards_pdf, "lietuvių", api_key)
@@ -1307,7 +1322,7 @@ with tab1:
 
                 if st.button("🎯 Generuoti iš YouTube", type="primary", disabled=not can_generate, use_container_width=True):
                     if not api_key:
-                        st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
+                        st.error("API raktas nenustatytas. Susisiekite su administratoriumi arba bandykite vėliau.")
                     else:
                         with st.spinner("Kuriamos kortelės..."):
                             cards = generate_flashcards_from_text(transcript, num_cards_yt, "lietuvių", api_key)
@@ -1337,7 +1352,7 @@ with tab1:
 
             if st.button("🎯 Generuoti iš nuotraukų", type="primary", disabled=not can_generate, use_container_width=True):
                 if not api_key:
-                    st.error("Pirmiausia įveskite API raktą nustatymuose (kairėje).")
+                    st.error("API raktas nenustatytas. Susisiekite su administratoriumi arba bandykite vėliau.")
                 else:
                     all_cards = []
                     for idx, uploaded_image in enumerate(uploaded_images):
@@ -1900,7 +1915,7 @@ with tab5:
     if not st.session_state.flashcards:
         st.info("Kol kas neturite kortelių. Sukurkite jas ir galėsite klausti AI apie bet kurią temą!")
     elif not api_key:
-        st.warning("Norint kalbėtis su AI, reikia API rakto. Įveskite jį nustatymuose (kairėje).")
+        st.warning("AI asistentas šiuo metu neprieinamas. Bandykite vėliau.")
     else:
         # Card selector
         card_options = [f"{i+1}. {c['klausimas'][:50]}..." for i, c in enumerate(st.session_state.flashcards)]
