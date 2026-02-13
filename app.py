@@ -1240,7 +1240,7 @@ with tab1:
         with col_opt1:
             num_cards = st.slider("Kiekis:", 5, 20, 10, key="slider_text")
         with col_opt2:
-            language = st.selectbox("Kalba:", ["lietuvių", "anglų", "abi"])
+            language = st.selectbox("Kalba:", ["lietuvių", "anglų"])
         with col_opt3:
             st.write("")  # spacing
             if st.button("🎯 Generuoti korteles", type="primary", disabled=not input_text or not can_generate, use_container_width=True):
