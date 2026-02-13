@@ -921,7 +921,7 @@ with st.sidebar:
                                 if st.button("⚙️ Valdyti prenumeratą", use_container_width=True):
                                     portal = create_billing_portal(cust_id)
                                     if portal.get('url'):
-                                        st.link_button("Atidaryti billing portalą", portal['url'], use_container_width=True)
+                                        streamlit_js_eval(js_expressions=f"window.open('{portal['url']}', '_blank')")
                                     else:
                                         st.error("Nepavyko atidaryti portalo.")
                             if st.button("Atšaukti prenumeratą", use_container_width=True):
@@ -1515,6 +1515,10 @@ with tab2:
             correct = sum(1 for r in results if r['correct'])
             total = len(results)
             percent = (correct / total) * 100 if total > 0 else 0
+
+            # Update streak after exam
+            if st.session_state.user and SUPABASE_AVAILABLE and total > 0:
+                update_streak(st.session_state.user['id'], cards_studied=total)
 
             # Time taken
             elapsed = int(time.time() - st.session_state.exam_start_time) if st.session_state.exam_start_time else 0
