@@ -185,25 +185,24 @@ st.markdown("""
 # QUANTUM Galaxy Theme — kosmoso tamsusis režimas su žvaigždėmis
 DARK_MODE_CSS = """
 <style>
-    /* === ŽVAIGŽDŽIŲ ANIMACIJA === */
-    @keyframes twinkle {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 1; }
-    }
-    @keyframes twinkle2 {
-        0%, 100% { opacity: 0.5; }
-        50% { opacity: 0.2; }
-    }
-    @keyframes nebula-drift {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.7; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;600&display=swap');
+
+    :root {
+        --primary-glow: #00BFFF;
+        --secondary-glow: #4B0082;
+        --text-bright: #f0f6fc;
+        --text-dim: #8b949e;
+        --glass-bg: rgba(10, 12, 25, 0.6);
+        --glass-border: rgba(0, 191, 255, 0.15);
     }
 
     /* === KOSMOSO FONAS SU ŽVAIGŽDĖMIS === */
     [data-testid="stAppViewContainer"] {
         background: #05060f !important;
+        background-image: radial-gradient(circle at 50% 50%, rgba(10, 20, 50, 0.4) 0%, transparent 80%) !important;
         background-attachment: fixed !important;
         overflow: hidden;
+        font-family: 'Outfit', sans-serif !important;
     }
 
     [data-testid="stAppViewContainer"]::before,
@@ -216,83 +215,23 @@ DARK_MODE_CSS = """
         z-index: 0;
     }
 
-    /* Žvaigždžių sluoksnis 1 — mažos žvaigždės */
+    /* Žvaigždžių sluoksnis 1 */
     [data-testid="stAppViewContainer"]::before {
         background-image:
             radial-gradient(1px 1px at 10% 10%, #ffffff 100%, transparent),
             radial-gradient(1px 1px at 20% 80%, #ffffff 100%, transparent),
             radial-gradient(1px 1px at 30% 30%, #ffffffcc 100%, transparent),
-            radial-gradient(1px 1px at 40% 60%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 50% 20%, #ffffffaa 100%, transparent),
-            radial-gradient(1px 1px at 60% 90%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 70% 45%, #ffffffcc 100%, transparent),
-            radial-gradient(1px 1px at 80% 70%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 90% 15%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 15% 55%, #ffffffbb 100%, transparent),
-            radial-gradient(1px 1px at 25% 95%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 35% 5%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 45% 45%, #ffffffcc 100%, transparent),
-            radial-gradient(1px 1px at 55% 75%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 65% 25%, #ffffffaa 100%, transparent),
-            radial-gradient(1px 1px at 75% 85%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 85% 35%, #ffffffdd 100%, transparent),
-            radial-gradient(1px 1px at 95% 65%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 5% 40%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 12% 72%, #ffffffcc 100%, transparent),
-            radial-gradient(1.5px 1.5px at 22% 18%, #ffffff 100%, transparent),
             radial-gradient(1.5px 1.5px at 48% 52%, #88ccff 100%, transparent),
-            radial-gradient(1.5px 1.5px at 72% 8%, #ffffff 100%, transparent),
-            radial-gradient(1.5px 1.5px at 88% 42%, #aaddff 100%, transparent),
-            radial-gradient(1px 1px at 33% 67%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 57% 37%, #ffffffcc 100%, transparent),
-            radial-gradient(1px 1px at 77% 57%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 17% 87%, #ffffffaa 100%, transparent),
-            radial-gradient(1px 1px at 43% 13%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 67% 93%, #ffffffbb 100%, transparent),
-            radial-gradient(1px 1px at 93% 47%, #ffffff 100%, transparent),
-            radial-gradient(1px 1px at 7% 23%, #ffffffcc 100%, transparent);
+            radial-gradient(1px 1px at 70% 45%, #ffffffcc 100%, transparent),
+            radial-gradient(1px 1px at 90% 15%, #ffffff 100%, transparent);
         background-size: 100% 100%;
-        animation: twinkle 4s ease-in-out infinite;
     }
 
-    /* Žvaigždžių sluoksnis 2 — didesnės ryškesnės žvaigždės */
-    [data-testid="stAppViewContainer"]::after {
-        background-image:
-            radial-gradient(2px 2px at 15% 25%, #ffffff 100%, transparent),
-            radial-gradient(2.5px 2.5px at 38% 68%, #00BFFF 100%, transparent),
-            radial-gradient(2px 2px at 62% 12%, #ffffff 100%, transparent),
-            radial-gradient(2.5px 2.5px at 82% 78%, #cc99ff 100%, transparent),
-            radial-gradient(2px 2px at 28% 48%, #ffffff 100%, transparent),
-            radial-gradient(3px 3px at 52% 32%, #88ddff 100%, transparent),
-            radial-gradient(2px 2px at 8% 62%, #ffffff 100%, transparent),
-            radial-gradient(2.5px 2.5px at 75% 52%, #ffffff 100%, transparent),
-            radial-gradient(2px 2px at 92% 22%, #aaccff 100%, transparent),
-            radial-gradient(2px 2px at 45% 88%, #ffffff 100%, transparent),
-            radial-gradient(3px 3px at 18% 42%, #ffccaa 100%, transparent),
-            radial-gradient(2px 2px at 68% 72%, #ffffff 100%, transparent);
-        background-size: 100% 100%;
-        animation: twinkle2 6s ease-in-out infinite;
-    }
-
-    /* Ūko / nebulos spalvos — ryškios */
-    .stApp {
-        background:
-            radial-gradient(ellipse at 15% 50%, rgba(75, 0, 130, 0.35) 0%, transparent 45%),
-            radial-gradient(ellipse at 85% 20%, rgba(0, 100, 255, 0.2) 0%, transparent 40%),
-            radial-gradient(ellipse at 50% 90%, rgba(0, 191, 255, 0.12) 0%, transparent 45%),
-            radial-gradient(ellipse at 70% 60%, rgba(139, 0, 255, 0.15) 0%, transparent 35%),
-            transparent !important;
-        animation: nebula-drift 15s ease-in-out infinite;
-    }
-
-    [data-testid="stHeader"], [data-testid="stMain"] {
-        background: transparent !important;
-    }
-
-    /* Turinys turi būti virš žvaigždžių */
+    .stApp { background: transparent !important; }
+    [data-testid="stHeader"], [data-testid="stMain"] { background: transparent !important; }
     [data-testid="stMain"] > div { position: relative; z-index: 1; }
 
-    /* === SIDEBAR — kosmoso stiklas === */
+    /* === SIDEBAR — stiklo efektas === */
     [data-testid="stSidebar"] {
         background: rgba(5, 6, 15, 0.88) !important;
         backdrop-filter: blur(20px) !important;
@@ -300,101 +239,83 @@ DARK_MODE_CSS = """
     }
 
     /* === TEKSTAS === */
-    h1, h2, h3, h4, h5, h6 { color: #f0f6fc !important; }
-    p, span, div, label, .stMarkdown, .stText { color: #d1d5db !important; }
+    h1, h2, h3, h4, h5, h6 { 
+        color: #f0f6fc !important; 
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px !important;
+    }
+    p, span, div, label, .stMarkdown, .stText { 
+        color: #d1d5db !important; 
+        font-family: 'Inter', sans-serif !important;
+    }
     .stCaption, caption { color: #8b949e !important; }
+
+    .highlight {
+        color: #00BFFF;
+        font-weight: 800;
+        text-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+    }
 
     /* === MYGTUKAI === */
     div.stButton > button {
         background: linear-gradient(135deg, #00BFFF 0%, #4B0082 100%) !important;
         color: white !important;
         border: none !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         font-weight: 600 !important;
         transition: all 0.3s ease !important;
         box-shadow: 0 0 15px rgba(0, 191, 255, 0.3) !important;
+        padding: 10px 24px !important;
     }
     div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 0 25px rgba(0, 191, 255, 0.6), 0 0 50px rgba(0, 191, 255, 0.3) !important;
-    }
-    button[kind="primary"] {
-        background: linear-gradient(135deg, #00BFFF 0%, #0060ff 50%, #4B0082 100%) !important;
-        box-shadow: 0 0 20px rgba(0, 191, 255, 0.4) !important;
-    }
-    button[kind="primary"]:hover {
-        box-shadow: 0 0 30px rgba(0, 191, 255, 0.7), 0 0 60px rgba(75, 0, 130, 0.4) !important;
+        box-shadow: 0 0 25px rgba(0, 191, 255, 0.6) !important;
     }
 
     /* === ĮVESTIES LAUKAI === */
     .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div {
+    .stTextArea > div > div > textarea {
         background-color: rgba(10, 12, 20, 0.85) !important;
         color: #f0f6fc !important;
         border: 1px solid rgba(0, 191, 255, 0.15) !important;
-    }
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #00BFFF !important;
-        box-shadow: 0 0 15px rgba(0, 191, 255, 0.3) !important;
+        border-radius: 10px !important;
     }
 
-    /* === TABS === */
-    .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] { color: #8b949e !important; }
-    .stTabs [aria-selected="true"] {
-        color: #00BFFF !important;
-        background: rgba(0, 191, 255, 0.08) !important;
-        border-bottom: 2px solid #00BFFF !important;
+    /* === CUSTOM LANDING CLASSES === */
+    .hero-title {
+        font-size: 4rem !important;
+        background: linear-gradient(to right, #fff, #00BFFF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        padding: 60px 0 20px 0;
+        line-height: 1.1 !important;
+        font-weight: 800;
+    }
+    
+    .nav-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        margin-bottom: 20px;
     }
 
-    /* === CONTAINERS — stiklo efektas === */
-    div[data-testid="stExpander"] {
-        background: rgba(10, 12, 25, 0.6) !important;
-        border: 1px solid rgba(0, 191, 255, 0.1) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(10px) !important;
+    .feature-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 30px;
+        transition: all 0.3s ease;
+        text-align: center;
+        height: 100%;
     }
-    .streamlit-expanderHeader { color: #d1d5db !important; }
-
-    /* === KORTELĖS === */
-    .flip-card-front, .study-card-q {
-        background: linear-gradient(135deg, #0c1222 0%, #1a1040 50%, #0d1117 100%) !important;
-        border: 1px solid rgba(0, 191, 255, 0.2) !important;
-        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(0, 191, 255, 0.15) !important;
-    }
-    .flip-card-back, .study-card-a {
-        background: linear-gradient(135deg, #061a15 0%, #0a2e1f 50%, #0d1117 100%) !important;
-        border: 1px solid rgba(56, 239, 125, 0.2) !important;
-        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(56, 239, 125, 0.15) !important;
-    }
-
-    /* === METRICS === */
-    [data-testid="stMetricValue"] { color: #00BFFF !important; }
-
-    /* === ALERTS === */
-    .stAlert {
-        background-color: rgba(10, 12, 20, 0.7) !important;
-        border: 1px solid rgba(0, 191, 255, 0.1) !important;
-        backdrop-filter: blur(6px) !important;
-    }
-
-    /* === KITI ELEMENTAI === */
-    .stSlider > div > div { background-color: rgba(48, 54, 61, 0.5) !important; }
-    [data-testid="stFileUploader"] {
-        background-color: rgba(10, 12, 20, 0.6) !important;
-        border: 1px dashed rgba(0, 191, 255, 0.25) !important;
-        border-radius: 12px !important;
-    }
-    hr { border-color: rgba(0, 191, 255, 0.12) !important; }
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #00BFFF, #4B0082) !important;
-    }
-    .stChatMessage {
-        background: rgba(10, 12, 20, 0.6) !important;
-        border: 1px solid rgba(0, 191, 255, 0.08) !important;
-        border-radius: 12px !important;
+    
+    .feature-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(0, 191, 255, 0.3);
+        transform: translateY(-5px);
     }
 
     /* === Streamlit cleanup === */
@@ -452,6 +373,8 @@ if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = True
 if 'last_activity' not in st.session_state:
     st.session_state.last_activity = time.time()
+if 'auth_view' not in st.session_state:
+    st.session_state.auth_view = False # True means show login/signup on landing page
 
 # Auto-logout after 30 minutes of inactivity
 SESSION_TIMEOUT = 30 * 60  # 30 minutes in seconds
@@ -1321,46 +1244,134 @@ Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.l
 
 # Main UI Logic
 if not st.session_state.user:
-    # LANDING PAGE FOR GUESTS
-    col_l1, col_l2, col_l3 = st.columns([1,1,1])
-    with col_l2:
-        st.image("assets/logo.png", use_container_width=True)
-    
-    st.markdown("""
-    <div style="text-align: center; padding: 0px 20px 40px 20px;">
-        <p style="font-size: 1.2rem; color: #8b949e; max-width: 900px; margin: 0 auto; font-family: monospace; letter-spacing: 2px; text-transform: uppercase;">
-            <span class="highlight">Q</span>uestion · <span class="highlight">U</span>nderstand · <span class="highlight">A</span>I · <span class="highlight">N</span>eural · <span class="highlight">T</span>hink · <span class="highlight">U</span>nified · <span class="highlight">M</span>emory
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # --- TOP NAVIGATION ---
+    nav_col1, nav_col2 = st.columns([1, 1])
+    with nav_col1:
+        st.image("assets/logo.png", width=150)
+    with nav_col2:
+        # Pull right aligned "links" using columns
+        sub_col1, sub_col2, sub_col3 = st.columns([2, 1, 1])
+        with sub_col2:
+            if st.button("Prisijungti", key="nav_login", use_container_width=True):
+                st.session_state.auth_view = True
+                st.session_state.auth_mode = "Prisijungti"
+                st.rerun()
+        with sub_col3:
+            if st.button("Registruotis", key="nav_signup", use_container_width=True):
+                st.session_state.auth_view = True
+                st.session_state.auth_mode = "Registruotis"
+                st.rerun()
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    if not st.session_state.auth_view:
+        # --- HERO SECTION ---
+        st.markdown('<h1 class="hero-title">Išmok bet ką 2x greičiau su AI</h1>', unsafe_allow_html=True)
         st.markdown("""
-        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="color: #00f2ff;">⚡ Greitis</h3>
-            <p style="color: #8b949e;">Sukurk 10 kortelių iš bet kokio teksto ar PDF per 5 sekundes.</p>
+        <div style="text-align: center; margin-bottom: 40px;">
+            <p style="font-size: 1.4rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
+                Atraskite ateities mokymosi būdą su išmaniosiomis kortelėmis, 
+                kurias sugeneruoja <b>Gemini 2.0</b> dirbtinis intelektas.
+            </p>
         </div>
         """, unsafe_allow_html=True)
-    with col2:
+
+        col_cta1, col_cta2, col_cta3 = st.columns([1, 1, 1])
+        with col_cta2:
+            if st.button("🚀 Pradėkite nemokamai", key="hero_cta", use_container_width=True):
+                st.session_state.auth_view = True
+                st.session_state.auth_mode = "Registruotis"
+                st.rerun()
+
+        st.markdown("<br><br>", unsafe_allow_html=True)
+
+        # --- FEATURES ---
+        f_col1, f_col2, f_col3 = st.columns(3)
+        with f_col1:
+            st.markdown("""
+            <div class="feature-card">
+                <h2 style="font-size: 3rem; margin: 0;">⚡</h2>
+                <h3>Greitis</h3>
+                <p>Sukurkite 10-20 kortelių iš bet kokio teksto, PDF ar YouTube video per kelias sekundes.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with f_col2:
+            st.markdown("""
+            <div class="feature-card">
+                <h2 style="font-size: 3rem; margin: 0;">🧠</h2>
+                <h3>Intelektas</h3>
+                <p>Aukščiausios kokybės klausimai dėka naujausios Gemini 2.0 technologijos.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with f_col3:
+            st.markdown("""
+            <div class="feature-card">
+                <h2 style="font-size: 3rem; margin: 0;">🎯</h2>
+                <h3>Atmintis</h3>
+                <p>Spaced Repetition sistema (didėjantys intervalai) užtikrina ilgalaikį prisiminimą.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown("""
-        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="color: #00f2ff;">🧠 Intelektas</h3>
-            <p style="color: #8b949e;">Gemini 2.0 technologija užtikrina aukščiausią klausimų kokybę.</p>
+        <div style="text-align: center; color: #505050; font-family: monospace; letter-spacing: 2px;">
+            <span class="highlight">Q</span>UESTION · <span class="highlight">U</span>NDERSTAND · <span class="highlight">A</span>I · <span class="highlight">N</span>EURAL · <span class="highlight">T</span>HINK · <span class="highlight">U</span>NIFIED · <span class="highlight">M</span>EMORY
         </div>
         """, unsafe_allow_html=True)
-    with col3:
-        st.markdown("""
-        <div style="text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="color: #00f2ff;">🎯 Rezultatai</h3>
-            <p style="color: #8b949e;">Spaced Repetition sistema padės viską prisiminti visam laikui.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("💡 **Norėdami pradėti, atidarykite meniu ☰ viršuje kairėje ir prisijunkite.**")
-    
-    st.stop() # Prevents guests from seeing the technical tabs below
+
+    else:
+        # --- AUTHENTICATION FLOW (Integrated) ---
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        auth_col1, auth_col2, auth_col3 = st.columns([1, 2, 1])
+        
+        with auth_col2:
+            st.markdown(f"## {st.session_state.auth_mode}")
+            
+            # Using the existing auth form logic from sidebar but integrated here
+            email = st.text_input("El. paštas", key="landing_auth_email", placeholder="pvz. jonas@pavyzdys.lt")
+            password = st.text_input("Slaptažodis", type="password", key="landing_auth_pass", placeholder="••••••••")
+            
+            if st.session_state.auth_mode == "Prisijungti":
+                if st.button("🔐 Prisijungti", key="landing_login_btn", use_container_width=True, type="primary"):
+                    if email and password:
+                        result = sign_in_with_email(email, password)
+                        if result['success']:
+                            st.session_state.user = {'id': str(result['user'].id), 'email': result['user'].email}
+                            if SUPABASE_AVAILABLE:
+                                profile = get_user_profile(st.session_state.user['id'])
+                                st.session_state.is_premium = profile.get('is_premium', False)
+                            sync_flashcards_from_supabase(st.session_state.user['id'])
+                            user_json = json.dumps(st.session_state.user)
+                            streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
+                            st.rerun()
+                        else:
+                            st.error("Nepavyko prisijungti. Patikrinkite duomenis.")
+                
+                if st.button("Neturite paskyros? Registruotis", key="toggle_to_signup"):
+                    st.session_state.auth_mode = "Registruotis"
+                    st.rerun()
+                
+                if st.button("Grįžti atgal", key="auth_back"):
+                    st.session_state.auth_view = False
+                    st.rerun()
+            
+            else: # Registruotis
+                gdpr = st.checkbox("Sutinku su duomenų tvarkymu (BDAR)", key="landing_gdpr")
+                if st.button("📝 Registruotis", key="landing_signup_btn", use_container_width=True, type="primary", disabled=not gdpr):
+                    if email and password:
+                        result = sign_up_with_email(email, password)
+                        if result['success']:
+                            st.success("Registracija sėkminga! Patvirtinkite el. paštą.")
+                        else:
+                            st.error("Registracija nepavyko.")
+                
+                if st.button("Jau turite paskyrą? Prisijungti", key="toggle_to_login"):
+                    st.session_state.auth_mode = "Prisijungti"
+                    st.rerun()
+
+                if st.button("Grįžti atgal", key="auth_back_reg"):
+                    st.session_state.auth_view = False
+                    st.rerun()
+
+    st.stop()
 
 # Main tabs
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
