@@ -236,32 +236,48 @@ button[kind="primary"]:hover {
 # Galaxy Theme CSS (Standard tamsusis režimas buvo pakeistas į šį premium stilių)
 GALAXY_THEME_CSS = """
 <style>
-    /* 1. PAGRINDINIS FONAS (Visata) */
+    /* 1. PAGRINDINIS FONAS (Tikra nuotrauka) */
     [data-testid="stAppViewContainer"] {
-        background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%) !important;
-        background-attachment: fixed !important;
-        color: #E0E0E0 !important;
-    }
-
-    /* 2. ŠONINIS MENIU (Sidebar) - Tamsioji materija */
-    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
-        background-color: #0d1117 !important;
-        border-right: 1px solid #1f294f !important;
-    }
-
-    /* 3. TEKSTO IR ANTRAŠČIŲ PRITAIKYMAS TAMSAI */
-    h1, h2, h3, h4, h5, h6, p, span, div, label {
-        color: #E0E0E0 !important;
+        background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_Andromeda_Galaxy_%28aerosnapper%29.jpg/2560px-M31_Andromeda_Galaxy_%28aerosnapper%29.jpg");
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
     }
     
-    /* Akronimo (Q U A N T U M) raidžių švytėjimas */
+    /* Tamsus permatomas sluoksnis ant nuotraukos geresniam įskaitomumui */
+    [data-testid="stAppViewContainer"]::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: -1;
+    }
+
+    /* 2. ŠONINIS MENIU (Sidebar) - Tamsesnis ir permatomas */
+    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+        background-color: rgba(13, 17, 23, 0.85) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+    }
+
+    /* 3. TEKSTO IR ANTRAŠČIŲ PRITAIKYMAS */
+    h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {
+        color: #FFFFFF !important;
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
+    }
+    
+    /* Akronimo raidžių švytėjimas */
     .highlight {
         color: #00BFFF !important; 
-        text-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+        text-shadow: 0 0 15px rgba(0, 191, 255, 0.8);
         font-weight: bold;
     }
 
-    /* 4. MYGTUKAI - Kaip varikliai kosmose */
+    /* 4. MYGTUKAI - Kaip šviečiantys varikliai */
     div.stButton > button {
         background: linear-gradient(135deg, #00BFFF 0%, #4B0082 100%) !important; 
         color: white !important;
@@ -271,31 +287,28 @@ GALAXY_THEME_CSS = """
         font-weight: 600 !important;
         letter-spacing: 1px !important;
         transition: all 0.3s ease-in-out !important;
-        box-shadow: 0 0 15px rgba(0, 191, 255, 0.3) !important;
+        box-shadow: 0 0 20px rgba(0, 191, 255, 0.5) !important;
     }
 
     div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 0 25px rgba(0, 191, 255, 0.7), 0 0 50px rgba(0, 191, 255, 0.4) !important;
+        box-shadow: 0 0 30px rgba(0, 191, 255, 0.9), 0 0 60px rgba(0, 191, 255, 0.6) !important;
     }
 
-    /* 5. ĮVESTIES LAUKAI (Input fields) */
+    /* 5. ĮVESTIES LAUKAI */
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
-        background-color: #161b22 !important;
-        color: #E0E0E0 !important;
-        border: 1px solid #30363d !important;
+        background-color: rgba(22, 27, 34, 0.8) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        backdrop-filter: blur(5px);
     }
-    .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus {
-        border-color: #00BFFF !important;
-        box-shadow: 0 0 10px rgba(0, 191, 255, 0.3) !important;
-    }
-    
-    /* Tabs & Expander pritaikymas galaktikai */
-    .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] { color: #8b949e !important; }
-    .stTabs [aria-selected="true"] { color: #00BFFF !important; border-bottom-color: #00BFFF !important; }
-    div[data-testid="stExpander"] { background-color: rgba(13, 17, 23, 0.8) !important; border-color: #1f294f !important; }
 
+    /* Tabs & Expander pritaikymas */
+    .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
+    .stTabs [data-baseweb="tab"] { color: #d1d5db !important; }
+    .stTabs [aria-selected="true"] { color: #00BFFF !important; border-bottom-color: #00BFFF !important; }
+    div[data-testid="stExpander"] { background-color: rgba(13, 17, 23, 0.7) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+    
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
