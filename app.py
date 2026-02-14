@@ -390,11 +390,13 @@ DARK_MODE_CSS = """
     }
 
     /* === Streamlit cleanup === */
-    #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stDecoration"] {
+    #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stDecoration"], [data-testid="stHeaderDecoration"] {
         display: none !important;
         visibility: hidden !important;
         height: 0 !important;
         padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
     }
     
     /* Agresyvus šoninio meniu paslėpimas */
@@ -1051,11 +1053,16 @@ if not st.session_state.user:
                             st.error(f"Klaida: {res.get('error')}")
                 
                 st.markdown("---")
-                if st.button("🔑 Prisijungti su Google", key="google_login_btn", use_container_width=True):
-                    redirect_url = os.getenv("STREAMLIT_APP_URL", "http://localhost:8501")
-                    result = get_google_oauth_url(redirect_url)
-                    if result.get("success") and result.get("url"):
-                        st.markdown(f'<meta http-equiv="refresh" content="0;url={result["url"]}">', unsafe_allow_html=True)
+                if SUPABASE_AVAILABLE:
+                    if st.button("🔑 Prisijungti su Google", key="google_login_btn", use_container_width=True):
+                        redirect_url = os.getenv("STREAMLIT_APP_URL", "http://localhost:8501")
+                        result = get_google_oauth_url(redirect_url)
+                        if result.get("success") and result.get("url"):
+                            st.markdown(f'<meta http-equiv="refresh" content="0;url={result["url"]}">', unsafe_allow_html=True)
+                        else:
+                            st.error(f"Klaida: {result.get('error', 'Nepavyko inicijuoti Google prisijungimo')}")
+                else:
+                    st.info("Prisijungimas su Google šiuo metu neprieinamas.")
 
                 if st.button("Neturite paskyros? Registruotis", key="toggle_to_reg"):
                     st.session_state.auth_mode = "Registruotis"
