@@ -488,26 +488,32 @@ if st.session_state.user is None:
     """, height=0)
 
     # Read tokens from query params (after JS redirect)
-    if "access_token" in st.query_params and "refresh_token" in st.query_params and SUPABASE_AVAILABLE:
+    if "access_token" in st.query_params and SUPABASE_AVAILABLE:
         try:
-            access_token = st.query_params["access_token"]
-            refresh_token = st.query_params["refresh_token"]
-            result = set_session_from_tokens(access_token, refresh_token)
-            if result.get("success") and result.get("user"):
-                user = result["user"]
-                user_email = user.email if hasattr(user, 'email') else user.get('email', '')
-                user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id', ''))
-                st.session_state.user = {'id': user_id, 'email': user_email}
-                profile = get_user_profile(user_id)
-                st.session_state.is_premium = profile.get('is_premium', False)
-                st.session_state.subscription_id = profile.get('subscription_id')
-                st.session_state.flashcards_count = get_daily_usage(user_id)
-                sync_flashcards_from_supabase(user_id)
-                user_json = json.dumps(st.session_state.user)
-                streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
-                st.query_params.clear()
-                st.rerun()
-        except Exception:
+            access_token = st.query_params.get("access_token", "")
+            refresh_token = st.query_params.get("refresh_token", "")
+            st.info(f"DEBUG: Tokenai rasti. Access: {access_token[:20]}... Refresh: {refresh_token[:20] if refresh_token else 'NERA'}...")
+            if access_token and refresh_token:
+                result = set_session_from_tokens(access_token, refresh_token)
+                st.info(f"DEBUG: set_session rezultatas: {result.get('success')} | Error: {result.get('error', 'none')}")
+                if result.get("success") and result.get("user"):
+                    user = result["user"]
+                    user_email = user.email if hasattr(user, 'email') else user.get('email', '')
+                    user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id', ''))
+                    st.session_state.user = {'id': user_id, 'email': user_email}
+                    profile = get_user_profile(user_id)
+                    st.session_state.is_premium = profile.get('is_premium', False)
+                    st.session_state.subscription_id = profile.get('subscription_id')
+                    st.session_state.flashcards_count = get_daily_usage(user_id)
+                    sync_flashcards_from_supabase(user_id)
+                    user_json = json.dumps(st.session_state.user)
+                    streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
+                    st.query_params.clear()
+                    st.rerun()
+            else:
+                st.warning("DEBUG: Trūksta refresh_token")
+        except Exception as e:
+            st.error(f"DEBUG: Klaida — {e}")
             st.query_params.clear()
 
 # Auto-logout after 30 minutes of inactivity
