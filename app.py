@@ -22,6 +22,7 @@ from streamlit_js_eval import streamlit_js_eval
 # Supabase integration
 try:
     from supabase_client import (
+        sign_in_email, sign_up_email,
         get_google_oauth_url, set_session_from_tokens, sign_out,
         save_flashcard_set, load_user_flashcards, update_card_progress,
         get_cards_for_review, delete_flashcard_set,
@@ -952,8 +953,8 @@ if not st.session_state.user:
         st.image("assets/logo.png", width=250)
         
     with nav_col3:
-        # Align toggle and login button to the right
-        sub_col1, sub_col2 = st.columns([1, 2])
+        # Align toggle and login buttons to the right
+        sub_col1, sub_col2, sub_col3 = st.columns([1, 1.5, 1.5])
         with sub_col1:
             dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle")
             if dark_on != st.session_state.dark_mode:
@@ -962,6 +963,12 @@ if not st.session_state.user:
         with sub_col2:
             if st.button("Prisijungti", key="nav_login", use_container_width=True):
                 st.session_state.auth_view = True
+                st.session_state.auth_mode = "Prisijungti"
+                st.rerun()
+        with sub_col3:
+            if st.button("Registruotis", key="nav_register", use_container_width=True):
+                st.session_state.auth_view = True
+                st.session_state.auth_mode = "Registruotis"
                 st.rerun()
 
     if not st.session_state.auth_view:
@@ -1019,25 +1026,54 @@ if not st.session_state.user:
         """, unsafe_allow_html=True)
 
     else:
-        # --- AUTHENTICATION FLOW (Google OAuth) ---
+        # --- AUTHENTICATION FLOW ---
         st.markdown("<br><br>", unsafe_allow_html=True)
         auth_col1, auth_col2, auth_col3 = st.columns([1, 2, 1])
 
         with auth_col2:
-            st.markdown("## Prisijungti")
-            st.markdown("Naudokite Google paskyrą — greita ir saugu.")
-
-            if SUPABASE_AVAILABLE:
-                if st.button("🔑 Prisijungti su Google", key="google_login_btn", use_container_width=True, type="primary"):
-                    # Build redirect URL (current app URL)
+            if st.session_state.auth_mode == "Prisijungti":
+                st.markdown("## Prisijungti")
+                email = st.text_input("El. paštas", key="login_email")
+                password = st.text_input("Slaptažodis", type="password", key="login_pass")
+                
+                if st.button("🔐 Prisijungti", key="submit_login", use_container_width=True, type="primary"):
+                    if email and password:
+                        res = sign_in_email(email, password)
+                        if res.get("success"):
+                            st.session_state.user = res["user"]
+                            st.rerun()
+                        else:
+                            st.error(f"Klaida: {res.get('error')}")
+                
+                st.markdown("---")
+                if st.button("🔑 Prisijungti su Google", key="google_login_btn", use_container_width=True):
                     redirect_url = os.getenv("STREAMLIT_APP_URL", "http://localhost:8501")
                     result = get_google_oauth_url(redirect_url)
                     if result.get("success") and result.get("url"):
                         st.markdown(f'<meta http-equiv="refresh" content="0;url={result["url"]}">', unsafe_allow_html=True)
-                    else:
-                        st.error("Nepavyko prisijungti. Bandykite dar kartą.")
+
+                if st.button("Neturite paskyros? Registruotis", key="toggle_to_reg"):
+                    st.session_state.auth_mode = "Registruotis"
+                    st.rerun()
+
             else:
-                st.warning("Prisijungimo funkcija šiuo metu neprieinama.")
+                st.markdown("## Registruotis")
+                email = st.text_input("El. paštas", key="reg_email")
+                password = st.text_input("Slaptažodis", type="password", key="reg_pass")
+                
+                if st.button("✨ Sukurti paskyrą", key="submit_reg", use_container_width=True, type="primary"):
+                    if email and password:
+                        res = sign_up_email(email, password)
+                        if res.get("success"):
+                            st.info("Patvirtinkite el. paštą (jei reikia) ir prisijunkite.")
+                            st.session_state.auth_mode = "Prisijungti"
+                            st.rerun()
+                        else:
+                            st.error(f"Klaida: {res.get('error')}")
+
+                if st.button("Jau turite paskyrą? Prisijungti", key="toggle_to_login"):
+                    st.session_state.auth_mode = "Prisijungti"
+                    st.rerun()
 
             st.markdown("")
             if st.button("Grįžti atgal", key="auth_back"):

@@ -17,31 +17,30 @@ def get_supabase() -> Client:
 
 
 # ========================
-# AUTH FUNCTIONS
+# AUTH FUNCTIONS (Google OAuth)
 # ========================
 
-def sign_in_with_email(email: str, password: str):
-    """Sign in with email/password"""
+def get_google_oauth_url(redirect_to: str):
+    """Get Google OAuth login URL via Supabase"""
     try:
         supabase = get_supabase()
-        response = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": password
+        response = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": redirect_to
+            }
         })
-        return {"success": True, "user": response.user, "session": response.session}
+        return {"success": True, "url": response.url}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 
-def sign_up_with_email(email: str, password: str):
-    """Sign up with email/password"""
+def set_session_from_tokens(access_token: str, refresh_token: str):
+    """Set Supabase session from OAuth callback tokens"""
     try:
         supabase = get_supabase()
-        response = supabase.auth.sign_up({
-            "email": email,
-            "password": password
-        })
-        return {"success": True, "user": response.user}
+        response = supabase.auth.set_session(access_token, refresh_token)
+        return {"success": True, "user": response.user, "session": response.session}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -59,6 +58,26 @@ def sign_out():
         return {"success": False, "error": str(e)}
 
 
+def sign_in_email(email, password):
+    """Sign in with email and password via Supabase"""
+    try:
+        supabase = get_supabase()
+        response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        return {"success": True, "user": response.user, "session": response.session}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def sign_up_email(email, password):
+    """Sign up with email and password via Supabase"""
+    try:
+        supabase = get_supabase()
+        response = supabase.auth.sign_up({"email": email, "password": password})
+        return {"success": True, "user": response.user, "session": response.session}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def get_current_user():
     """Get current logged in user"""
     try:
@@ -66,49 +85,6 @@ def get_current_user():
         return supabase.auth.get_user()
     except Exception:
         return None
-
-
-def change_password(new_password: str):
-    """Change password for the currently logged-in user"""
-    try:
-        supabase = get_supabase()
-        supabase.auth.update_user({"password": new_password})
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def change_email(new_email: str):
-    """Change email for the currently logged-in user (requires confirmation)"""
-    try:
-        supabase = get_supabase()
-        supabase.auth.update_user({"email": new_email})
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def update_display_name(user_id: str, display_name: str):
-    """Update user's display name in profiles table"""
-    try:
-        supabase = get_supabase()
-        supabase.table("profiles").upsert({
-            "id": user_id,
-            "display_name": display_name
-        }).execute()
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def reset_password(email: str):
-    """Send password reset email"""
-    try:
-        supabase = get_supabase()
-        supabase.auth.reset_password_email(email)
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 
 # ========================
@@ -558,19 +534,19 @@ def get_streak(user_id: str):
         profile = supabase.table("profiles").select(
             "streak_count, last_study_date, longest_streak, total_cards_studied"
         ).eq("id", user_id).single().execute()
-        
+
         data = profile.data or {}
         today = datetime.now().date()
         last_study = data.get("last_study_date")
         streak = data.get("streak_count", 0) or 0
-        
+
         # Check if streak is still valid (not missed today)
         if last_study:
             last_date = datetime.strptime(str(last_study), "%Y-%m-%d").date()
             diff = (today - last_date).days
             if diff > 1:
                 streak = 0  # Streak broken
-        
+
         return {
             "streak": streak,
             "longest": data.get("longest_streak", 0) or 0,
@@ -579,4 +555,78 @@ def get_streak(user_id: str):
         }
     except Exception:
         return {"streak": 0, "longest": 0, "total": 0, "studied_today": False}
+
+
+# ========================
+# DAILY USAGE TRACKING
+# ========================
+
+"""
+SQL — Paleiskite Supabase SQL Editoriuje:
+
+CREATE TABLE IF NOT EXISTS daily_usage (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    usage_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    cards_generated INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(user_id, usage_date)
+);
+
+ALTER TABLE daily_usage ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own usage" ON daily_usage
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own usage" ON daily_usage
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own usage" ON daily_usage
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_daily_usage_user_date ON daily_usage(user_id, usage_date);
+
+-- Atomic increment RPC
+CREATE OR REPLACE FUNCTION increment_card_usage(p_user_id UUID, p_count INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    new_total INTEGER;
+BEGIN
+    INSERT INTO daily_usage (user_id, usage_date, cards_generated)
+    VALUES (p_user_id, CURRENT_DATE, p_count)
+    ON CONFLICT (user_id, usage_date)
+    DO UPDATE SET cards_generated = daily_usage.cards_generated + p_count
+    RETURNING cards_generated INTO new_total;
+    RETURN new_total;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+"""
+
+
+def get_daily_usage(user_id: str):
+    """Get today's generated card count from DB"""
+    try:
+        supabase = get_supabase()
+        today = datetime.now().date().isoformat()
+        result = supabase.table("daily_usage").select("cards_generated").eq(
+            "user_id", user_id
+        ).eq("usage_date", today).execute()
+
+        if result.data:
+            return result.data[0]["cards_generated"]
+        return 0
+    except Exception:
+        return 0
+
+
+def increment_daily_usage(user_id: str, count: int):
+    """Atomically increment today's card usage via RPC"""
+    try:
+        supabase = get_supabase()
+        result = supabase.rpc("increment_card_usage", {
+            "p_user_id": user_id,
+            "p_count": count
+        }).execute()
+        return result.data if result.data is not None else 0
+    except Exception:
+        return 0
 
