@@ -22,14 +22,15 @@ from streamlit_js_eval import streamlit_js_eval
 # Supabase integration
 try:
     from supabase_client import (
-        sign_in_with_email, sign_up_with_email, sign_out,
+        get_google_oauth_url, set_session_from_tokens, sign_out,
         save_flashcard_set, load_user_flashcards, update_card_progress,
         get_cards_for_review, delete_flashcard_set,
         export_user_data, delete_user_account,
         get_user_premium_status, set_user_premium_status, get_user_profile,
         make_set_public, get_public_sets, clone_public_set, get_user_sets,
-        change_password, change_email, update_display_name, reset_password,
-        update_streak, get_streak
+        update_streak, get_streak,
+        get_daily_usage, increment_daily_usage,
+        SUPABASE_URL
     )
     SUPABASE_AVAILABLE = True
 except ImportError:
@@ -346,6 +347,12 @@ DARK_MODE_CSS = """
         color: #f0f6fc !important;
     }
 
+    /* Logo & Search Centering */
+    [data-testid="stImage"] {
+        display: flex !important;
+        justify-content: center !important;
+    }
+
     /* === CUSTOM LANDING CLASSES === */
     .hero-title {
         font-size: 3.5rem !important;
@@ -445,19 +452,49 @@ if 'user' not in st.session_state:
                     profile = get_user_profile(user_data['id'])
                     st.session_state.is_premium = profile.get('is_premium', False)
                     st.session_state.subscription_id = profile.get('subscription_id')
+                    # Restore daily usage from DB
+                    st.session_state.flashcards_count = get_daily_usage(user_data['id'])
                 # Load flashcards
                 sync_flashcards_from_supabase(user_data['id'])
                 st.rerun()
         except (json.JSONDecodeError, Exception):
             pass  # Invalid stored data, ignore
-if 'auth_mode' not in st.session_state:
-    st.session_state.auth_mode = 'login'
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = True
 if 'last_activity' not in st.session_state:
     st.session_state.last_activity = time.time()
 if 'auth_view' not in st.session_state:
     st.session_state.auth_view = False # True means show login/signup on landing page
+
+# === OAuth callback: detect tokens in URL hash after Google login ===
+if st.session_state.user is None and SUPABASE_AVAILABLE:
+    hash_value = streamlit_js_eval(js_expressions="window.location.hash", key="oauth_hash_check")
+    if hash_value and "access_token=" in str(hash_value):
+        try:
+            import urllib.parse
+            params = urllib.parse.parse_qs(str(hash_value).lstrip("#"))
+            access_token = params.get("access_token", [None])[0]
+            refresh_token = params.get("refresh_token", [None])[0]
+            if access_token and refresh_token:
+                result = set_session_from_tokens(access_token, refresh_token)
+                if result.get("success") and result.get("user"):
+                    user = result["user"]
+                    user_email = user.email if hasattr(user, 'email') else user.get('email', '')
+                    user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id', ''))
+                    st.session_state.user = {'id': user_id, 'email': user_email}
+                    if SUPABASE_AVAILABLE:
+                        profile = get_user_profile(user_id)
+                        st.session_state.is_premium = profile.get('is_premium', False)
+                        st.session_state.subscription_id = profile.get('subscription_id')
+                        st.session_state.flashcards_count = get_daily_usage(user_id)
+                    sync_flashcards_from_supabase(user_id)
+                    user_json = json.dumps(st.session_state.user)
+                    streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
+                    # Clear URL hash
+                    streamlit_js_eval(js_expressions="history.replaceState(null, '', window.location.pathname + window.location.search)")
+                    st.rerun()
+        except Exception:
+            pass  # Token parsing failed, ignore
 
 # Auto-logout after 30 minutes of inactivity
 SESSION_TIMEOUT = 30 * 60  # 30 minutes in seconds
@@ -802,6 +839,15 @@ GRĄŽINK TIK JSON ARRAY formatu (be jokio papildomo teksto):
 def save_generated_cards(cards):
     """Save generated cards to session state and trigger success"""
     if cards:
+        # Server-side limit check before saving
+        if st.session_state.user and SUPABASE_AVAILABLE:
+            user_id = st.session_state.user['id']
+            current_usage = get_daily_usage(user_id)
+            daily_limit = get_limit('daily')
+            if current_usage + len(cards) > daily_limit:
+                st.error(f"Dienos limitas pasiektas ({current_usage}/{daily_limit}). Bandykite rytoj arba atnaujinkite Premium.")
+                return
+
         db_card_ids = []
 
         # Save to Supabase if logged in
@@ -811,6 +857,9 @@ def save_generated_cards(cards):
                 result = save_flashcard_set(st.session_state.user['id'], set_name, cards)
                 if result.get('success'):
                     db_card_ids = result.get('card_ids', [])
+
+            # Increment daily usage in DB
+            increment_daily_usage(st.session_state.user['id'], len(cards))
 
         st.session_state.flashcards = cards
         st.session_state.flashcards_count += len(cards)
@@ -897,25 +946,22 @@ if st.session_state.generation_success > 0:
 # Main UI Logic
 if not st.session_state.user:
     # --- TOP NAVIGATION ---
-    nav_col1, nav_col2 = st.columns([1, 1])
-    with nav_col1:
-        st.image("assets/logo.png", width=160)
+    nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
     with nav_col2:
-        sub_col1, sub_col2, sub_col3, sub_col4 = st.columns([1, 1, 1, 1])
-        with sub_col2:
+        # Center logo by column layout + manual width
+        st.image("assets/logo.png", width=250)
+        
+    with nav_col3:
+        # Align toggle and login button to the right
+        sub_col1, sub_col2 = st.columns([1, 2])
+        with sub_col1:
             dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle")
             if dark_on != st.session_state.dark_mode:
                 st.session_state.dark_mode = dark_on
                 st.rerun()
-        with sub_col3:
+        with sub_col2:
             if st.button("Prisijungti", key="nav_login", use_container_width=True):
                 st.session_state.auth_view = True
-                st.session_state.auth_mode = "Prisijungti"
-                st.rerun()
-        with sub_col4:
-            if st.button("Registruotis", key="nav_signup", use_container_width=True):
-                st.session_state.auth_view = True
-                st.session_state.auth_mode = "Registruotis"
                 st.rerun()
 
     if not st.session_state.auth_view:
@@ -934,7 +980,6 @@ if not st.session_state.user:
         with col_cta2:
             if st.button("🚀 Pradėkite nemokamai", key="hero_cta", use_container_width=True):
                 st.session_state.auth_view = True
-                st.session_state.auth_mode = "Registruotis"
                 st.rerun()
 
         st.markdown("<br><br>", unsafe_allow_html=True)
@@ -974,75 +1019,50 @@ if not st.session_state.user:
         """, unsafe_allow_html=True)
 
     else:
-        # --- AUTHENTICATION FLOW (Integrated) ---
+        # --- AUTHENTICATION FLOW (Google OAuth) ---
         st.markdown("<br><br>", unsafe_allow_html=True)
         auth_col1, auth_col2, auth_col3 = st.columns([1, 2, 1])
-        
-        with auth_col2:
-            st.markdown(f"## {st.session_state.auth_mode}")
-            
-            # Using the existing auth form logic from sidebar but integrated here
-            email = st.text_input("El. paštas", key="landing_auth_email", placeholder="pvz. jonas@pavyzdys.lt")
-            password = st.text_input("Slaptažodis", type="password", key="landing_auth_pass", placeholder="••••••••")
-            
-            if st.session_state.auth_mode == "Prisijungti":
-                if st.button("🔐 Prisijungti", key="landing_login_btn", use_container_width=True, type="primary"):
-                    if email and password:
-                        result = sign_in_with_email(email, password)
-                        if result['success']:
-                            st.session_state.user = {'id': str(result['user'].id), 'email': result['user'].email}
-                            if SUPABASE_AVAILABLE:
-                                profile = get_user_profile(st.session_state.user['id'])
-                                st.session_state.is_premium = profile.get('is_premium', False)
-                            sync_flashcards_from_supabase(st.session_state.user['id'])
-                            user_json = json.dumps(st.session_state.user)
-                            streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
-                            st.rerun()
-                        else:
-                            st.error("Nepavyko prisijungti. Patikrinkite duomenis.")
-                
-                if st.button("Neturite paskyros? Registruotis", key="toggle_to_signup"):
-                    st.session_state.auth_mode = "Registruotis"
-                    st.rerun()
-                
-                if st.button("Grįžti atgal", key="auth_back"):
-                    st.session_state.auth_view = False
-                    st.rerun()
-            
-            else: # Registruotis
-                gdpr = st.checkbox("Sutinku su duomenų tvarkymu (BDAR)", key="landing_gdpr")
-                if st.button("📝 Registruotis", key="landing_signup_btn", use_container_width=True, type="primary", disabled=not gdpr):
-                    if email and password:
-                        result = sign_up_with_email(email, password)
-                        if result['success']:
-                            st.success("Registracija sėkminga! Patvirtinkite el. paštą.")
-                        else:
-                            st.error("Registracija nepavyko.")
-                
-                if st.button("Jau turite paskyrą? Prisijungti", key="toggle_to_login"):
-                    st.session_state.auth_mode = "Prisijungti"
-                    st.rerun()
 
-                if st.button("Grįžti atgal", key="auth_back_reg"):
-                    st.session_state.auth_view = False
-                    st.rerun()
+        with auth_col2:
+            st.markdown("## Prisijungti")
+            st.markdown("Naudokite Google paskyrą — greita ir saugu.")
+
+            if SUPABASE_AVAILABLE:
+                if st.button("🔑 Prisijungti su Google", key="google_login_btn", use_container_width=True, type="primary"):
+                    # Build redirect URL (current app URL)
+                    redirect_url = os.getenv("STREAMLIT_APP_URL", "http://localhost:8501")
+                    result = get_google_oauth_url(redirect_url)
+                    if result.get("success") and result.get("url"):
+                        st.markdown(f'<meta http-equiv="refresh" content="0;url={result["url"]}">', unsafe_allow_html=True)
+                    else:
+                        st.error("Nepavyko prisijungti. Bandykite dar kartą.")
+            else:
+                st.warning("Prisijungimo funkcija šiuo metu neprieinama.")
+
+            st.markdown("")
+            if st.button("Grįžti atgal", key="auth_back"):
+                st.session_state.auth_view = False
+                st.rerun()
 
     st.stop()
 
 # --- TOP NAVIGATION (logged in) ---
-nav_l, nav_r = st.columns([1, 1])
-with nav_l:
-    st.image("assets/logo.png", width=160)
-with nav_r:
-    nc1, nc2, nc3, nc4 = st.columns([1, 1, 2, 1])
-    with nc2:
+nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+with nav_col2:
+    st.image("assets/logo.png", width=250)
+
+with nav_col3:
+    nc1, nc2, nc3 = st.columns([1, 3, 2])
+    with nc1:
         dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle_main")
         if dark_on != st.session_state.dark_mode:
             st.session_state.dark_mode = dark_on
             st.rerun()
+    with nc2:
+        # Fix email visibility in dark mode and center it
+        email_color = "#f0f6fc" if st.session_state.dark_mode else "#262730"
+        st.markdown(f"<div style='padding-top: 5px; color: {email_color}; text-align: center;'><b>{st.session_state.user['email']}</b></div>", unsafe_allow_html=True)
     with nc3:
-        st.markdown(f"<div style='padding-top: 5px;'><b>{st.session_state.user['email']}</b></div>", unsafe_allow_html=True)
-    with nc4:
         if st.button("Atsijungti", key="nav_logout", use_container_width=True):
             sign_out()
             st.session_state.user = None
