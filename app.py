@@ -476,7 +476,9 @@ if 'auth_mode' not in st.session_state:
 
 # === OAuth callback: detect tokens in URL hash after Google login ===
 if st.session_state.user is None and SUPABASE_AVAILABLE:
-    hash_value = streamlit_js_eval(js_expressions="window.location.hash", key="oauth_hash_check")
+    if 'oauth_checked' not in st.session_state:
+        st.session_state.oauth_checked = False
+    hash_value = streamlit_js_eval(js_expressions="window.location.hash")
     if hash_value and "access_token=" in str(hash_value):
         try:
             import urllib.parse
