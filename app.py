@@ -390,9 +390,9 @@ DARK_MODE_CSS = """
     }
 
     /* === Streamlit cleanup === */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu { display: none !important; }
+    footer { display: none !important; }
+    header { display: none !important; }
     
     /* Agresyvus šoninio meniu paslėpimas */
     [data-testid="stSidebar"], 
@@ -536,7 +536,7 @@ if st.session_state.dark_mode:
 else:
     st.markdown("""
     <style>
-        #MainMenu, footer, header { visibility: hidden; }
+        #MainMenu, footer, header { display: none !important; }
         [data-testid="stSidebar"] { display: none !important; }
         [data-testid="stSidebarCollapsedControl"] { display: none !important; }
     </style>
@@ -947,14 +947,14 @@ if st.session_state.generation_success > 0:
 # Main UI Logic
 if not st.session_state.user:
     # --- TOP NAVIGATION ---
-    nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+    nav_col1, nav_col2, nav_col3 = st.columns([1, 1, 1])
     with nav_col2:
-        # Center logo by column layout + manual width
+        # Center logo
         st.image("assets/logo.png", width=250)
         
     with nav_col3:
-        # Align toggle and login buttons to the right
-        sub_col1, sub_col2, sub_col3 = st.columns([1, 1.5, 1.5])
+        # Give buttons more space to prevent wrapping
+        sub_col1, sub_col2, sub_col3 = st.columns([0.8, 2, 2])
         with sub_col1:
             dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle")
             if dark_on != st.session_state.dark_mode:
@@ -1083,12 +1083,12 @@ if not st.session_state.user:
     st.stop()
 
 # --- TOP NAVIGATION (logged in) ---
-nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+nav_col1, nav_col2, nav_col3 = st.columns([1, 1, 1])
 with nav_col2:
     st.image("assets/logo.png", width=250)
 
 with nav_col3:
-    nc1, nc2, nc3 = st.columns([1, 3, 2])
+    nc1, nc2, nc3 = st.columns([0.8, 3, 2])
     with nc1:
         dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle_main")
         if dark_on != st.session_state.dark_mode:
