@@ -182,28 +182,121 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# QUANTUM Galaxy Theme — kosmoso tamsusis režimas
+# QUANTUM Galaxy Theme — kosmoso tamsusis režimas su žvaigždėmis
 DARK_MODE_CSS = """
 <style>
-    /* === KOSMOSO FONAS === */
-    [data-testid="stAppViewContainer"] {
-        background:
-            radial-gradient(ellipse at 20% 50%, rgba(75, 0, 130, 0.15) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(0, 191, 255, 0.08) 0%, transparent 40%),
-            radial-gradient(ellipse at 50% 80%, rgba(0, 60, 255, 0.06) 0%, transparent 50%),
-            radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%) !important;
-        background-attachment: fixed !important;
+    /* === ŽVAIGŽDŽIŲ ANIMACIJA === */
+    @keyframes twinkle {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 1; }
+    }
+    @keyframes twinkle2 {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 0.2; }
+    }
+    @keyframes nebula-drift {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 0.7; }
     }
 
-    .stApp, [data-testid="stHeader"], [data-testid="stMain"] {
+    /* === KOSMOSO FONAS SU ŽVAIGŽDĖMIS === */
+    [data-testid="stAppViewContainer"] {
+        background: #05060f !important;
+        background-attachment: fixed !important;
+        overflow: hidden;
+    }
+
+    [data-testid="stAppViewContainer"]::before,
+    [data-testid="stAppViewContainer"]::after {
+        content: '';
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Žvaigždžių sluoksnis 1 — mažos žvaigždės */
+    [data-testid="stAppViewContainer"]::before {
+        background-image:
+            radial-gradient(1px 1px at 10% 10%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 20% 80%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 30% 30%, #ffffffcc 100%, transparent),
+            radial-gradient(1px 1px at 40% 60%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 50% 20%, #ffffffaa 100%, transparent),
+            radial-gradient(1px 1px at 60% 90%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 70% 45%, #ffffffcc 100%, transparent),
+            radial-gradient(1px 1px at 80% 70%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 90% 15%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 15% 55%, #ffffffbb 100%, transparent),
+            radial-gradient(1px 1px at 25% 95%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 35% 5%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 45% 45%, #ffffffcc 100%, transparent),
+            radial-gradient(1px 1px at 55% 75%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 65% 25%, #ffffffaa 100%, transparent),
+            radial-gradient(1px 1px at 75% 85%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 85% 35%, #ffffffdd 100%, transparent),
+            radial-gradient(1px 1px at 95% 65%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 5% 40%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 12% 72%, #ffffffcc 100%, transparent),
+            radial-gradient(1.5px 1.5px at 22% 18%, #ffffff 100%, transparent),
+            radial-gradient(1.5px 1.5px at 48% 52%, #88ccff 100%, transparent),
+            radial-gradient(1.5px 1.5px at 72% 8%, #ffffff 100%, transparent),
+            radial-gradient(1.5px 1.5px at 88% 42%, #aaddff 100%, transparent),
+            radial-gradient(1px 1px at 33% 67%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 57% 37%, #ffffffcc 100%, transparent),
+            radial-gradient(1px 1px at 77% 57%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 17% 87%, #ffffffaa 100%, transparent),
+            radial-gradient(1px 1px at 43% 13%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 67% 93%, #ffffffbb 100%, transparent),
+            radial-gradient(1px 1px at 93% 47%, #ffffff 100%, transparent),
+            radial-gradient(1px 1px at 7% 23%, #ffffffcc 100%, transparent);
+        background-size: 100% 100%;
+        animation: twinkle 4s ease-in-out infinite;
+    }
+
+    /* Žvaigždžių sluoksnis 2 — didesnės ryškesnės žvaigždės */
+    [data-testid="stAppViewContainer"]::after {
+        background-image:
+            radial-gradient(2px 2px at 15% 25%, #ffffff 100%, transparent),
+            radial-gradient(2.5px 2.5px at 38% 68%, #00BFFF 100%, transparent),
+            radial-gradient(2px 2px at 62% 12%, #ffffff 100%, transparent),
+            radial-gradient(2.5px 2.5px at 82% 78%, #cc99ff 100%, transparent),
+            radial-gradient(2px 2px at 28% 48%, #ffffff 100%, transparent),
+            radial-gradient(3px 3px at 52% 32%, #88ddff 100%, transparent),
+            radial-gradient(2px 2px at 8% 62%, #ffffff 100%, transparent),
+            radial-gradient(2.5px 2.5px at 75% 52%, #ffffff 100%, transparent),
+            radial-gradient(2px 2px at 92% 22%, #aaccff 100%, transparent),
+            radial-gradient(2px 2px at 45% 88%, #ffffff 100%, transparent),
+            radial-gradient(3px 3px at 18% 42%, #ffccaa 100%, transparent),
+            radial-gradient(2px 2px at 68% 72%, #ffffff 100%, transparent);
+        background-size: 100% 100%;
+        animation: twinkle2 6s ease-in-out infinite;
+    }
+
+    /* Ūko / nebulos spalvos — ryškios */
+    .stApp {
+        background:
+            radial-gradient(ellipse at 15% 50%, rgba(75, 0, 130, 0.35) 0%, transparent 45%),
+            radial-gradient(ellipse at 85% 20%, rgba(0, 100, 255, 0.2) 0%, transparent 40%),
+            radial-gradient(ellipse at 50% 90%, rgba(0, 191, 255, 0.12) 0%, transparent 45%),
+            radial-gradient(ellipse at 70% 60%, rgba(139, 0, 255, 0.15) 0%, transparent 35%),
+            transparent !important;
+        animation: nebula-drift 15s ease-in-out infinite;
+    }
+
+    [data-testid="stHeader"], [data-testid="stMain"] {
         background: transparent !important;
     }
 
-    /* === SIDEBAR — tamsios materijos stiklas === */
+    /* Turinys turi būti virš žvaigždžių */
+    [data-testid="stMain"] > div { position: relative; z-index: 1; }
+
+    /* === SIDEBAR — kosmoso stiklas === */
     [data-testid="stSidebar"] {
-        background: rgba(9, 10, 15, 0.92) !important;
-        backdrop-filter: blur(16px) !important;
-        border-right: 1px solid rgba(0, 191, 255, 0.1) !important;
+        background: rgba(5, 6, 15, 0.88) !important;
+        backdrop-filter: blur(20px) !important;
+        border-right: 1px solid rgba(0, 191, 255, 0.15) !important;
     }
 
     /* === TEKSTAS === */
@@ -211,25 +304,23 @@ DARK_MODE_CSS = """
     p, span, div, label, .stMarkdown, .stText { color: #d1d5db !important; }
     .stCaption, caption { color: #8b949e !important; }
 
-    /* === MYGTUKAI — neoniniai === */
+    /* === MYGTUKAI === */
     div.stButton > button {
         background: linear-gradient(135deg, #00BFFF 0%, #4B0082 100%) !important;
         color: white !important;
         border: none !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        letter-spacing: 0.5px !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 0 12px rgba(0, 191, 255, 0.3) !important;
+        box-shadow: 0 0 15px rgba(0, 191, 255, 0.3) !important;
     }
     div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 0 20px rgba(0, 191, 255, 0.6), 0 0 40px rgba(0, 191, 255, 0.3) !important;
+        box-shadow: 0 0 25px rgba(0, 191, 255, 0.6), 0 0 50px rgba(0, 191, 255, 0.3) !important;
     }
-
     button[kind="primary"] {
         background: linear-gradient(135deg, #00BFFF 0%, #0060ff 50%, #4B0082 100%) !important;
-        box-shadow: 0 0 18px rgba(0, 191, 255, 0.4) !important;
+        box-shadow: 0 0 20px rgba(0, 191, 255, 0.4) !important;
     }
     button[kind="primary"]:hover {
         box-shadow: 0 0 30px rgba(0, 191, 255, 0.7), 0 0 60px rgba(75, 0, 130, 0.4) !important;
@@ -239,47 +330,44 @@ DARK_MODE_CSS = """
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     .stSelectbox > div > div {
-        background-color: rgba(13, 17, 23, 0.8) !important;
+        background-color: rgba(10, 12, 20, 0.85) !important;
         color: #f0f6fc !important;
         border: 1px solid rgba(0, 191, 255, 0.15) !important;
     }
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus {
         border-color: #00BFFF !important;
-        box-shadow: 0 0 12px rgba(0, 191, 255, 0.25) !important;
+        box-shadow: 0 0 15px rgba(0, 191, 255, 0.3) !important;
     }
 
     /* === TABS === */
     .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] {
-        color: #8b949e !important;
-        border-radius: 8px 8px 0 0 !important;
-    }
+    .stTabs [data-baseweb="tab"] { color: #8b949e !important; }
     .stTabs [aria-selected="true"] {
         color: #00BFFF !important;
         background: rgba(0, 191, 255, 0.08) !important;
         border-bottom: 2px solid #00BFFF !important;
     }
 
-    /* === EXPANDER & CONTAINERS — stiklo efektas === */
+    /* === CONTAINERS — stiklo efektas === */
     div[data-testid="stExpander"] {
-        background: rgba(255, 255, 255, 0.03) !important;
+        background: rgba(10, 12, 25, 0.6) !important;
         border: 1px solid rgba(0, 191, 255, 0.1) !important;
         border-radius: 12px !important;
-        backdrop-filter: blur(8px) !important;
+        backdrop-filter: blur(10px) !important;
     }
     .streamlit-expanderHeader { color: #d1d5db !important; }
 
-    /* === KORTELĖS — kosmoso gradientai === */
+    /* === KORTELĖS === */
     .flip-card-front, .study-card-q {
         background: linear-gradient(135deg, #0c1222 0%, #1a1040 50%, #0d1117 100%) !important;
-        border: 1px solid rgba(0, 191, 255, 0.15) !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 191, 255, 0.1) !important;
+        border: 1px solid rgba(0, 191, 255, 0.2) !important;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(0, 191, 255, 0.15) !important;
     }
     .flip-card-back, .study-card-a {
         background: linear-gradient(135deg, #061a15 0%, #0a2e1f 50%, #0d1117 100%) !important;
-        border: 1px solid rgba(56, 239, 125, 0.15) !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(56, 239, 125, 0.1) !important;
+        border: 1px solid rgba(56, 239, 125, 0.2) !important;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(56, 239, 125, 0.15) !important;
     }
 
     /* === METRICS === */
@@ -287,37 +375,29 @@ DARK_MODE_CSS = """
 
     /* === ALERTS === */
     .stAlert {
-        background-color: rgba(13, 17, 23, 0.7) !important;
+        background-color: rgba(10, 12, 20, 0.7) !important;
         border: 1px solid rgba(0, 191, 255, 0.1) !important;
-        backdrop-filter: blur(4px) !important;
+        backdrop-filter: blur(6px) !important;
     }
 
-    /* === SLIDER === */
-    .stSlider > div > div { background-color: rgba(48, 54, 61, 0.6) !important; }
-
-    /* === FILE UPLOADER === */
+    /* === KITI ELEMENTAI === */
+    .stSlider > div > div { background-color: rgba(48, 54, 61, 0.5) !important; }
     [data-testid="stFileUploader"] {
-        background-color: rgba(13, 17, 23, 0.6) !important;
-        border: 1px dashed rgba(0, 191, 255, 0.2) !important;
+        background-color: rgba(10, 12, 20, 0.6) !important;
+        border: 1px dashed rgba(0, 191, 255, 0.25) !important;
         border-radius: 12px !important;
     }
-
-    /* === DIVIDERS === */
-    hr { border-color: rgba(0, 191, 255, 0.1) !important; }
-
-    /* === PROGRESS BAR === */
+    hr { border-color: rgba(0, 191, 255, 0.12) !important; }
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #00BFFF, #4B0082) !important;
     }
-
-    /* === CHAT === */
     .stChatMessage {
-        background: rgba(13, 17, 23, 0.6) !important;
+        background: rgba(10, 12, 20, 0.6) !important;
         border: 1px solid rgba(0, 191, 255, 0.08) !important;
         border-radius: 12px !important;
     }
 
-    /* === Streamlit UI cleanup === */
+    /* === Streamlit cleanup === */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
