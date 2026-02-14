@@ -94,7 +94,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS — mobile-first responsive design
+# Base CSS — layout, flip cards, mobile (theme-neutral)
 st.markdown("""
 <style>
 /* ===== FLIP CARDS ===== */
@@ -148,7 +148,7 @@ st.markdown("""
     transform: rotateY(180deg);
 }
 
-/* ===== STUDY CARDS (Mokymasis tab) ===== */
+/* ===== STUDY CARDS ===== */
 .study-card {
     padding: 24px 20px;
     border-radius: 15px;
@@ -166,145 +166,158 @@ st.markdown("""
 .study-card-q { background: linear-gradient(135deg, #667eea, #764ba2); }
 .study-card-a { background: linear-gradient(135deg, #11998e, #38ef7d); }
 
-/* ===== MOBILE OPTIMIZATIONS ===== */
+/* ===== MOBILE ===== */
 @media (max-width: 768px) {
-    /* Bigger touch targets */
     .stButton > button {
         min-height: 48px !important;
         font-size: 1rem !important;
         padding: 10px 16px !important;
     }
-    margin-bottom: 2rem;
 }
 
-/* Glassmorphism Containers */
-div[data-testid="stExpander"], .stChatMessage, .stTabs [data-baseweb="tab"] {
-    background: var(--glass) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
-    backdrop-filter: blur(12px);
-}
-
-/* Custom Primary Buttons */
-button[kind="primary"] {
-    background: linear-gradient(135deg, #00f2ff, #0060ff) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 20px rgba(0, 242, 255, 0.2) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-button[kind="primary"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0, 242, 255, 0.4) !important;
-}
-
-/* Tabs UI */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    background-color: transparent;
-}
-
-.stTabs [data-baseweb="tab"] {
-    padding: 10px 20px !important;
-    color: #8b949e !important;
-}
-
-.stTabs [aria-selected="true"] {
-    background: rgba(0, 242, 255, 0.1) !important;
-    color: #00f2ff !important;
-    border-bottom: 2px solid #00f2ff !important;
-}
-
-/* Metric & Alerts */
-[data-testid="stMetricValue"] { color: #00f2ff !important; }
-.stAlert { border-radius: 12px !important; border: 1px solid var(--border) !important; }
-
-/* Flip Cards Premium */
-.flip-card-front, .study-card-q {
-    background: linear-gradient(135deg, #0f172a, #1e293b) !important;
-    border: 1px solid rgba(255,255,255,0.05) !important;
-}
-.flip-card-back, .study-card-a {
-    background: linear-gradient(135deg, #064e3b, #065f46) !important;
-}
+/* ===== SHARED UI ===== */
+.stAlert { border-radius: 12px !important; }
+.stTabs [data-baseweb="tab-list"] { gap: 8px; }
+.stTabs [data-baseweb="tab"] { padding: 10px 20px !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# Galaxy Theme CSS (Standard tamsusis režimas buvo pakeistas į šį premium stilių)
-GALAXY_THEME_CSS = """
+# QUANTUM Galaxy Theme — kosmoso tamsusis režimas
+DARK_MODE_CSS = """
 <style>
-    /* 1. PAGRINDINIS FONAS (Andromedos Galaktika) */
+    /* === KOSMOSO FONAS === */
     [data-testid="stAppViewContainer"] {
-        background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
-            url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_Andromeda_Galaxy_%28aerosnapper%29.jpg/2560px-M31_Andromeda_Galaxy_%28aerosnapper%29.jpg") !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-repeat: no-repeat !important;
+        background:
+            radial-gradient(ellipse at 20% 50%, rgba(75, 0, 130, 0.15) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(0, 191, 255, 0.08) 0%, transparent 40%),
+            radial-gradient(ellipse at 50% 80%, rgba(0, 60, 255, 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%) !important;
         background-attachment: fixed !important;
     }
 
-    /* Priverstinis permatomumas pagrindiniams konteineriams */
-    .stApp, [data-testid="stHeader"], [data-testid="stMain"], [data-testid="stSidebar"] {
+    .stApp, [data-testid="stHeader"], [data-testid="stMain"] {
         background: transparent !important;
     }
 
-    /* 2. ŠONINIS MENIU (Sidebar) - Stiklo efektas (Glassmorphism) */
+    /* === SIDEBAR — tamsios materijos stiklas === */
     [data-testid="stSidebar"] {
-        background-color: rgba(13, 17, 23, 0.8) !important;
-        backdrop-filter: blur(12px) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(9, 10, 15, 0.92) !important;
+        backdrop-filter: blur(16px) !important;
+        border-right: 1px solid rgba(0, 191, 255, 0.1) !important;
     }
 
-    /* 3. TEKSTO IR ANTRAŠČIŲ PRITAIKYMAS */
-    h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown, .stCaption {
-        color: #FFFFFF !important;
-        text-shadow: 0px 2px 4px rgba(0,0,0,0.6) !important;
-    }
-    
-    /* Akronimo (QUANTUM) raidžių švytėjimas */
-    .highlight {
-        color: #00BFFF !important; 
-        text-shadow: 0 0 15px rgba(0, 191, 255, 0.9), 0 0 5px rgba(255, 255, 255, 0.4) !important;
-        font-weight: bold;
-    }
+    /* === TEKSTAS === */
+    h1, h2, h3, h4, h5, h6 { color: #f0f6fc !important; }
+    p, span, div, label, .stMarkdown, .stText { color: #d1d5db !important; }
+    .stCaption, caption { color: #8b949e !important; }
 
-    /* 4. MYGTUKAI - Kaip šviečiantys varikliai */
+    /* === MYGTUKAI — neoniniai === */
     div.stButton > button {
-        background: linear-gradient(135deg, #00BFFF 0%, #4B0082 100%) !important; 
+        background: linear-gradient(135deg, #00BFFF 0%, #4B0082 100%) !important;
         color: white !important;
         border: none !important;
-        border-radius: 8px !important;
-        padding: 10px 24px !important;
+        border-radius: 10px !important;
         font-weight: 600 !important;
-        letter-spacing: 1px !important;
-        transition: all 0.3s ease-in-out !important;
-        box-shadow: 0 0 15px rgba(0, 191, 255, 0.4) !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 0 12px rgba(0, 191, 255, 0.3) !important;
     }
-
     div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 0 25px rgba(0, 191, 255, 0.8), 0 0 50px rgba(0, 191, 255, 0.5) !important;
+        box-shadow: 0 0 20px rgba(0, 191, 255, 0.6), 0 0 40px rgba(0, 191, 255, 0.3) !important;
     }
 
-    /* 5. ĮVESTIES LAUKAI */
-    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
-        background-color: rgba(22, 27, 34, 0.7) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        backdrop-filter: blur(5px);
+    button[kind="primary"] {
+        background: linear-gradient(135deg, #00BFFF 0%, #0060ff 50%, #4B0082 100%) !important;
+        box-shadow: 0 0 18px rgba(0, 191, 255, 0.4) !important;
+    }
+    button[kind="primary"]:hover {
+        box-shadow: 0 0 30px rgba(0, 191, 255, 0.7), 0 0 60px rgba(75, 0, 130, 0.4) !important;
     }
 
-    /* Tabs & Expander pritaikymas galaktikai */
+    /* === ĮVESTIES LAUKAI === */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div {
+        background-color: rgba(13, 17, 23, 0.8) !important;
+        color: #f0f6fc !important;
+        border: 1px solid rgba(0, 191, 255, 0.15) !important;
+    }
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #00BFFF !important;
+        box-shadow: 0 0 12px rgba(0, 191, 255, 0.25) !important;
+    }
+
+    /* === TABS === */
     .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] { color: #d1d5db !important; }
-    .stTabs [aria-selected="true"] { color: #00BFFF !important; border-bottom-color: #00BFFF !important; }
-    div[data-testid="stExpander"] { background-color: rgba(255, 255, 255, 0.05) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+    .stTabs [data-baseweb="tab"] {
+        color: #8b949e !important;
+        border-radius: 8px 8px 0 0 !important;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #00BFFF !important;
+        background: rgba(0, 191, 255, 0.08) !important;
+        border-bottom: 2px solid #00BFFF !important;
+    }
 
-    /* Paslepiam elementus */
+    /* === EXPANDER & CONTAINERS — stiklo efektas === */
+    div[data-testid="stExpander"] {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(0, 191, 255, 0.1) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(8px) !important;
+    }
+    .streamlit-expanderHeader { color: #d1d5db !important; }
+
+    /* === KORTELĖS — kosmoso gradientai === */
+    .flip-card-front, .study-card-q {
+        background: linear-gradient(135deg, #0c1222 0%, #1a1040 50%, #0d1117 100%) !important;
+        border: 1px solid rgba(0, 191, 255, 0.15) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 191, 255, 0.1) !important;
+    }
+    .flip-card-back, .study-card-a {
+        background: linear-gradient(135deg, #061a15 0%, #0a2e1f 50%, #0d1117 100%) !important;
+        border: 1px solid rgba(56, 239, 125, 0.15) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(56, 239, 125, 0.1) !important;
+    }
+
+    /* === METRICS === */
+    [data-testid="stMetricValue"] { color: #00BFFF !important; }
+
+    /* === ALERTS === */
+    .stAlert {
+        background-color: rgba(13, 17, 23, 0.7) !important;
+        border: 1px solid rgba(0, 191, 255, 0.1) !important;
+        backdrop-filter: blur(4px) !important;
+    }
+
+    /* === SLIDER === */
+    .stSlider > div > div { background-color: rgba(48, 54, 61, 0.6) !important; }
+
+    /* === FILE UPLOADER === */
+    [data-testid="stFileUploader"] {
+        background-color: rgba(13, 17, 23, 0.6) !important;
+        border: 1px dashed rgba(0, 191, 255, 0.2) !important;
+        border-radius: 12px !important;
+    }
+
+    /* === DIVIDERS === */
+    hr { border-color: rgba(0, 191, 255, 0.1) !important; }
+
+    /* === PROGRESS BAR === */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #00BFFF, #4B0082) !important;
+    }
+
+    /* === CHAT === */
+    .stChatMessage {
+        background: rgba(13, 17, 23, 0.6) !important;
+        border: 1px solid rgba(0, 191, 255, 0.08) !important;
+        border-radius: 12px !important;
+    }
+
+    /* === Streamlit UI cleanup === */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -393,14 +406,12 @@ if 'exam_total' not in st.session_state:
 if 'exam_time_limit' not in st.session_state:
     st.session_state.exam_time_limit = None
 
-# Apply Galaxy Theme CSS only if dark_mode is True
+# Apply theme
 if st.session_state.dark_mode:
-    st.markdown(GALAXY_THEME_CSS, unsafe_allow_html=True)
+    st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
 else:
-    # Optional: Force some standard light mode tweaks if needed
     st.markdown("""
     <style>
-        .highlight { color: #0060ff !important; font-weight: bold; }
         #MainMenu, footer, header { visibility: hidden; }
     </style>
     """, unsafe_allow_html=True)
