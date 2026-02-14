@@ -305,6 +305,8 @@ if 'user' not in st.session_state:
             pass  # Invalid stored data, ignore
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = 'login'
+if 'dark_mode' not in st.session_state:
+    st.session_state.dark_mode = True
 if 'last_activity' not in st.session_state:
     st.session_state.last_activity = time.time()
 
@@ -340,6 +342,10 @@ if 'exam_total' not in st.session_state:
     st.session_state.exam_total = 0
 if 'exam_time_limit' not in st.session_state:
     st.session_state.exam_time_limit = None
+
+# Apply dark mode CSS
+if st.session_state.dark_mode:
+    st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
 
 # Handle Stripe Redirect (after successful payment)
 if STRIPE_AVAILABLE and 'session_id' in st.query_params:
@@ -735,11 +741,16 @@ if st.session_state.generation_success > 0:
 with st.sidebar:
     # Logo & Brand
     st.image("assets/logo.png", use_container_width=True)
-    st.markdown("<h2 style='text-align: center; color: #00f2ff; margin-top: -10px;'>QUANTUM</h2>", unsafe_allow_html=True)
     st.caption("<p style='text-align: center;'>Ateities mokymosi platforma</p>", unsafe_allow_html=True)
-    
+
+    # Dark/Light mode toggle
+    dark_on = st.toggle("🌙 Tamsusis režimas", value=st.session_state.dark_mode, key="dark_toggle")
+    if dark_on != st.session_state.dark_mode:
+        st.session_state.dark_mode = dark_on
+        st.rerun()
+
     st.divider()
-    
+
     # ==================
     # AUTHENTICATION UI
     # ==================
