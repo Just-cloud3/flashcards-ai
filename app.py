@@ -236,44 +236,39 @@ button[kind="primary"]:hover {
 # Galaxy Theme CSS (Standard tamsusis režimas buvo pakeistas į šį premium stilių)
 GALAXY_THEME_CSS = """
 <style>
-    /* 1. PAGRINDINIS FONAS (Tikra nuotrauka) */
+    /* 1. PAGRINDINIS FONAS (Andromedos Galaktika) */
     [data-testid="stAppViewContainer"] {
-        background-image: url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_Andromeda_Galaxy_%28aerosnapper%29.jpg/2560px-M31_Andromeda_Galaxy_%28aerosnapper%29.jpg");
-        background-size: cover;
-        background-position: center center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
-    
-    /* Tamsus permatomas sluoksnis ant nuotraukos geresniam įskaitomumui */
-    [data-testid="stAppViewContainer"]::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.65);
-        z-index: -1;
+        background-image: 
+            linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
+            url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_Andromeda_Galaxy_%28aerosnapper%29.jpg/2560px-M31_Andromeda_Galaxy_%28aerosnapper%29.jpg") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        background-attachment: fixed !important;
     }
 
-    /* 2. ŠONINIS MENIU (Sidebar) - Tamsesnis ir permatomas */
-    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
-        background-color: rgba(13, 17, 23, 0.85) !important;
+    /* Priverstinis permatomumas pagrindiniams konteineriams */
+    .stApp, [data-testid="stHeader"], [data-testid="stMain"], [data-testid="stSidebar"] {
+        background: transparent !important;
+    }
+
+    /* 2. ŠONINIS MENIU (Sidebar) - Stiklo efektas (Glassmorphism) */
+    [data-testid="stSidebar"] {
+        background-color: rgba(13, 17, 23, 0.8) !important;
+        backdrop-filter: blur(12px) !important;
         border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-        backdrop-filter: blur(10px);
     }
 
     /* 3. TEKSTO IR ANTRAŠČIŲ PRITAIKYMAS */
-    h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {
+    h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown, .stCaption {
         color: #FFFFFF !important;
-        text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.6) !important;
     }
     
-    /* Akronimo raidžių švytėjimas */
+    /* Akronimo (QUANTUM) raidžių švytėjimas */
     .highlight {
         color: #00BFFF !important; 
-        text-shadow: 0 0 15px rgba(0, 191, 255, 0.8);
+        text-shadow: 0 0 15px rgba(0, 191, 255, 0.9), 0 0 5px rgba(255, 255, 255, 0.4) !important;
         font-weight: bold;
     }
 
@@ -287,28 +282,29 @@ GALAXY_THEME_CSS = """
         font-weight: 600 !important;
         letter-spacing: 1px !important;
         transition: all 0.3s ease-in-out !important;
-        box-shadow: 0 0 20px rgba(0, 191, 255, 0.5) !important;
+        box-shadow: 0 0 15px rgba(0, 191, 255, 0.4) !important;
     }
 
     div.stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 0 30px rgba(0, 191, 255, 0.9), 0 0 60px rgba(0, 191, 255, 0.6) !important;
+        box-shadow: 0 0 25px rgba(0, 191, 255, 0.8), 0 0 50px rgba(0, 191, 255, 0.5) !important;
     }
 
     /* 5. ĮVESTIES LAUKAI */
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
-        background-color: rgba(22, 27, 34, 0.8) !important;
+        background-color: rgba(22, 27, 34, 0.7) !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         backdrop-filter: blur(5px);
     }
 
-    /* Tabs & Expander pritaikymas */
+    /* Tabs & Expander pritaikymas galaktikai */
     .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
     .stTabs [data-baseweb="tab"] { color: #d1d5db !important; }
     .stTabs [aria-selected="true"] { color: #00BFFF !important; border-bottom-color: #00BFFF !important; }
-    div[data-testid="stExpander"] { background-color: rgba(13, 17, 23, 0.7) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
-    
+    div[data-testid="stExpander"] { background-color: rgba(255, 255, 255, 0.05) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+
+    /* Paslepiam elementus */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -397,9 +393,17 @@ if 'exam_total' not in st.session_state:
 if 'exam_time_limit' not in st.session_state:
     st.session_state.exam_time_limit = None
 
-# Apply Galaxy Theme CSS
+# Apply Galaxy Theme CSS only if dark_mode is True
 if st.session_state.dark_mode:
     st.markdown(GALAXY_THEME_CSS, unsafe_allow_html=True)
+else:
+    # Optional: Force some standard light mode tweaks if needed
+    st.markdown("""
+    <style>
+        .highlight { color: #0060ff !important; font-weight: bold; }
+        #MainMenu, footer, header { visibility: hidden; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # Handle Stripe Redirect (after successful payment)
 if STRIPE_AVAILABLE and 'session_id' in st.query_params:
