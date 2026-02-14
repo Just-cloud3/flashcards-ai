@@ -91,7 +91,8 @@ def get_limit(limit_type):
 st.set_page_config(
     page_title="QUANTUM — Išmanus mokymasis",
     page_icon="⚛️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # Base CSS — layout, flip cards, mobile (theme-neutral)
@@ -322,6 +323,26 @@ DARK_MODE_CSS = """
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Agresyvus šoninio meniu paslėpimas */
+    [data-testid="stSidebar"], 
+    section[data-testid="stSidebar"],
+    div[data-testid="stSidebar"] {
+        display: none !important;
+        width: 0px !important;
+        visibility: hidden !important;
+    }
+    
+    [data-testid="stSidebarCollapsedControl"],
+    button[data-testid="stSidebarCollapsedControl"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Pašaliname tarpus, kurie lieka paslėpus sidebar */
+    [data-testid="stAppViewContainer"] {
+        padding-left: 0px !important;
+    }
 </style>
 """
 
@@ -416,6 +437,8 @@ else:
     st.markdown("""
     <style>
         #MainMenu, footer, header { visibility: hidden; }
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="stSidebarCollapsedControl"] { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -809,438 +832,17 @@ if st.session_state.generation_success > 0:
     st.success(f"Paruošta {st.session_state.generation_success} kortelių! Galite pradėti mokytis.")
     st.session_state.generation_success = 0
 
-# Sidebar (rendered BEFORE guest check so mobile users see login form)
-with st.sidebar:
-    # Logo & Brand
-    st.image("assets/logo.png", use_container_width=True)
-    st.caption("""<p style='text-align: center; font-family: monospace; letter-spacing: 1px;'>
-        <span class="highlight">Q</span>uestion · <span class="highlight">U</span>nderstand · <span class="highlight">A</span>I · <span class="highlight">N</span>eural · <span class="highlight">T</span>hink · <span class="highlight">U</span>nified · <span class="highlight">M</span>emory
-    </p>""", unsafe_allow_html=True)
+# API key: admin sees input, regular users use server key
+if is_admin():
+    api_key = st.text_input(
+        "API raktas",
+        value=os.getenv("GEMINI_API_KEY", ""),
+        type="password",
+        placeholder="Įklijuokite raktą čia..."
+    )
+else:
+    api_key = os.getenv("GEMINI_API_KEY", "")
 
-    # Dark/Light mode toggle
-    dark_on = st.toggle("🌙 Tamsusis režimas", value=st.session_state.dark_mode, key="dark_toggle")
-    if dark_on != st.session_state.dark_mode:
-        st.session_state.dark_mode = dark_on
-        st.rerun()
-
-    st.divider()
-
-    # ==================
-    # AUTHENTICATION UI
-    # ==================
-    if SUPABASE_AVAILABLE:
-        st.header("👤 Paskyra")
-        
-        if st.session_state.user:
-            # User is logged in
-            st.success(f"Sveiki, {st.session_state.user['email']}!")
-            st.caption("Jūsų kortelės saugomos automatiškai")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔄 Atnaujinti", use_container_width=True):
-                    if sync_flashcards_from_supabase(st.session_state.user['id']):
-                        st.success("Atnaujinta!")
-                        st.rerun()
-                    else:
-                        st.error("Nepavyko atnaujinti. Bandykite dar kartą.")
-            with col2:
-                if st.button("🚪 Atsijungti", use_container_width=True):
-                    sign_out()
-                    st.session_state.user = None
-                    st.session_state.flashcards = []
-                    st.session_state.study_cards = {}
-                    # Clear localStorage
-                    streamlit_js_eval(js_expressions="localStorage.removeItem('quantum_user')")
-                    st.rerun()
-
-            # Account editing
-            with st.expander("✏️ Redaguoti paskyrą"):
-                # Display name
-                current_profile = get_user_profile(st.session_state.user['id'])
-                current_name = current_profile.get('display_name', '')
-
-                new_name = st.text_input(
-                    "Vardas / slapyvardis:",
-                    value=current_name,
-                    placeholder="Pvz. Jonas S.",
-                    key="edit_display_name"
-                )
-                if st.button("💾 Išsaugoti vardą", use_container_width=True, key="save_name_btn"):
-                    if new_name and new_name != current_name:
-                        res = update_display_name(st.session_state.user['id'], new_name)
-                        if res.get('success'):
-                            st.success("Vardas atnaujintas!")
-                        else:
-                            st.error("Nepavyko atnaujinti vardo.")
-                    elif not new_name:
-                        st.warning("Įveskite vardą")
-
-                st.divider()
-
-                # Change email
-                st.markdown("**Keisti el. paštą**")
-                new_email = st.text_input(
-                    "Naujas el. paštas:",
-                    placeholder="naujas@email.com",
-                    key="edit_email"
-                )
-                if st.button("📧 Keisti el. paštą", use_container_width=True, key="change_email_btn"):
-                    if new_email and new_email != st.session_state.user['email']:
-                        res = change_email(new_email)
-                        if res.get('success'):
-                            st.success("Patvirtinimo laiškas išsiųstas į naują el. paštą. Patikrinkite pašto dėžutę.")
-                        else:
-                            err = res.get('error', '').lower()
-                            if 'already' in err or 'exists' in err:
-                                st.error("Šis el. paštas jau užregistruotas.")
-                            else:
-                                st.error("Nepavyko pakeisti el. pašto. Bandykite vėliau.")
-                    elif not new_email:
-                        st.warning("Įveskite naują el. paštą")
-
-                st.divider()
-
-                # Change password
-                st.markdown("**Keisti slaptažodį**")
-                new_pass = st.text_input(
-                    "Naujas slaptažodis:",
-                    type="password",
-                    placeholder="Min. 6 simboliai",
-                    key="edit_new_pass"
-                )
-                new_pass_confirm = st.text_input(
-                    "Pakartokite slaptažodį:",
-                    type="password",
-                    placeholder="••••••••",
-                    key="edit_new_pass_confirm"
-                )
-                if st.button("🔑 Keisti slaptažodį", use_container_width=True, key="change_pass_btn"):
-                    if not new_pass or not new_pass_confirm:
-                        st.warning("Užpildykite abu laukus")
-                    elif len(new_pass) < 6:
-                        st.warning("Slaptažodis per trumpas (min. 6 simboliai)")
-                    elif new_pass != new_pass_confirm:
-                        st.warning("Slaptažodžiai nesutampa")
-                    else:
-                        res = change_password(new_pass)
-                        if res.get('success'):
-                            st.success("Slaptažodis pakeistas sėkmingai!")
-                        else:
-                            st.error("Nepavyko pakeisti slaptažodžio. Bandykite vėliau.")
-
-            # BDAR: Data export + Account deletion
-            with st.expander("🔒 Mano duomenys ir privatumas"):
-                st.caption("Jūs turite visišką kontrolę savo duomenims:")
-
-                # Data export (Art. 20) - direct download button
-                export_result = export_user_data(
-                    st.session_state.user['id'],
-                    st.session_state.user['email']
-                )
-                if export_result.get('success'):
-                    st.download_button(
-                        "📥 Eksportuoti mano duomenis",
-                        json.dumps(export_result['data'], ensure_ascii=False, indent=2, default=str),
-                        f"mano_duomenys_{datetime.now().strftime('%Y%m%d')}.json",
-                        "application/json",
-                        use_container_width=True
-                    )
-
-                st.divider()
-
-                # Account deletion (Art. 17)
-                st.markdown("**Ištrinti paskyrą**")
-                st.caption("Tai negrįžtamas veiksmas — visos kortelės ir paskyra bus ištrinti.")
-                delete_confirm = st.text_input(
-                    "Įveskite DELETE kad patvirtintumėte:",
-                    key="delete_confirm",
-                    placeholder="DELETE"
-                )
-                if st.button("🗑️ Ištrinti paskyrą visam laikui", type="primary", use_container_width=True):
-                    if delete_confirm == "DELETE":
-                        with st.spinner("Trinami duomenys..."):
-                            result = delete_user_account(st.session_state.user['id'])
-                            if result['success']:
-                                st.session_state.user = None
-                                st.session_state.is_premium = False
-                                st.session_state.flashcards = []
-                                st.session_state.study_cards = {}
-                                st.success("Paskyra ir visi duomenys ištrinti.")
-                                st.rerun()
-                            else:
-                                st.error("Kažkas nepavyko. Parašykite mums ir padėsime.")
-                    else:
-                        st.warning("Įveskite DELETE kad patvirtintumėte")
-
-            st.divider()
-            
-            # Premium Section
-            if not st.session_state.is_premium and STRIPE_AVAILABLE:
-                st.markdown("### 💎 Premium planas")
-                st.markdown("**€3.99/mėn**")
-                st.write("- Neriboti kortelių kūrimai")
-                st.write("- Ilgesni tekstai ir dideli failai")
-                st.write("- Greitesnis apdorojimas")
-
-                if st.button("💎 Tapti Premium", type="primary", use_container_width=True):
-                    result = create_checkout_session(st.session_state.user['email'])
-                    if result and isinstance(result, dict) and result.get('url'):
-                        st.session_state.checkout_url = result['url']
-                    else:
-                        st.error("Nepavyko prisijungti prie mokėjimo sistemos. Bandykite vėliau.")
-
-                if 'checkout_url' in st.session_state:
-                    st.info("Viskas paruošta!")
-                    st.link_button("💳 Pereiti prie apmokėjimo", st.session_state.checkout_url, use_container_width=True)
-                    st.caption("Apmokėjus būsite automatiškai grąžinti atgal.")
-
-            elif st.session_state.is_premium:
-                st.success("💎 Premium narys")
-                # Subscription management
-                sub_id = st.session_state.get('subscription_id')
-                if sub_id and STRIPE_AVAILABLE:
-                    sub_info = get_subscription_status(sub_id)
-                    if sub_info:
-                        if sub_info.get('cancel_at_period_end'):
-                            end_ts = sub_info.get('current_period_end', 0)
-                            end_date = datetime.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
-                            st.caption(f"Premium galios iki {end_date}")
-                        else:
-                            # Billing Portal button
-                            profile = get_user_profile(st.session_state.user['id'])
-                            cust_id = profile.get('stripe_customer_id')
-                            if cust_id:
-                                if st.button("⚙️ Valdyti prenumeratą", use_container_width=True):
-                                    portal = create_billing_portal(cust_id)
-                                    if portal.get('url'):
-                                        streamlit_js_eval(js_expressions=f"window.open('{portal['url']}', '_blank')")
-                                    else:
-                                        st.error("Nepavyko atidaryti portalo.")
-                            if st.button("Atšaukti prenumeratą", use_container_width=True):
-                                result = cancel_subscription(sub_id)
-                                if result.get('success'):
-                                    end_ts = result.get('cancel_at', 0)
-                                    end_date = datetime.fromtimestamp(end_ts).strftime('%Y-%m-%d') if end_ts else '?'
-                                    st.info(f"Prenumerata atšaukta. Premium galios iki {end_date}")
-                                else:
-                                    st.error("Kažkas nepavyko. Parašykite mums ir padėsime.")
-        else:
-            # Login/Signup forms
-            st.write("---")
-            auth_tab = st.radio("Paskyros veiksmas:", ["Prisijungti", "Registruotis"], horizontal=True, label_visibility="collapsed")
-            
-            email = st.text_input("El. paštas", key="auth_email", placeholder="studentas@email.com")
-            password = st.text_input("Slaptažodis", type="password", key="auth_pass", placeholder="••••••••")
-            
-            if auth_tab == "Prisijungti":
-                if st.button("🔐 Prisijungti", use_container_width=True):
-                    if email and password:
-                        result = sign_in_with_email(email, password)
-                        if result['success']:
-                            st.session_state.user = {
-                                'id': str(result['user'].id),
-                                'email': result['user'].email
-                            }
-                            # Load profile (premium, subscription)
-                            if SUPABASE_AVAILABLE:
-                                profile = get_user_profile(st.session_state.user['id'])
-                                st.session_state.is_premium = profile.get('is_premium', False)
-                                st.session_state.subscription_id = profile.get('subscription_id')
-
-                            # Activate pending payment (paid before login)
-                            if 'pending_payment' in st.session_state and SUPABASE_AVAILABLE:
-                                pp = st.session_state.pending_payment
-                                set_user_premium_status(
-                                    st.session_state.user['id'], True,
-                                    subscription_id=pp.get('subscription_id'),
-                                    stripe_customer_id=pp.get('customer_id')
-                                )
-                                st.session_state.is_premium = True
-                                st.session_state.subscription_id = pp.get('subscription_id')
-                                del st.session_state.pending_payment
-
-                            # Load user's flashcards and study history
-                            sync_flashcards_from_supabase(st.session_state.user['id'])
-                            # Save login to browser localStorage
-                            user_json = json.dumps(st.session_state.user)
-                            streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
-                            st.success("Sveiki sugrįžę!")
-                            st.rerun()
-                        else:
-                            err = result.get('error', '').lower()
-                            if "email not confirmed" in err:
-                                st.error("El. paštas dar nepatvirtintas. Patikrinkite savo pašto dėžutę (ir Spam aplanką).")
-                            elif "invalid login credentials" in err:
-                                st.error("Neteisingas el. paštas arba slaptažodis. Bandykite dar kartą.")
-                            else:
-                                st.error("Prisijungti nepavyko. Patikrinkite duomenis ir bandykite dar kartą.")
-                    else:
-                        st.warning("Įveskite el. paštą ir slaptažodį")
-                
-                # Forgot password
-                if st.button("🔑 Pamiršau slaptažodį", use_container_width=True):
-                    if email:
-                        res = reset_password(email)
-                        if res.get('success'):
-                            st.success("Slaptažodžio atnaujinimo nuoroda išsiųsta į jūsų el. paštą!")
-                        else:
-                            st.error("Nepavyko išsiųsti. Patikrinkite el. pašto adresą.")
-                    else:
-                        st.warning("Pirmiausia įveskite savo el. pašto adresą viršuje.")
-            else:
-                gdpr_consent = st.checkbox(
-                    "Sutinku su [Privatumo politika](#privatumo-politika) ir duomenų tvarkymu (BDAR)",
-                    key="gdpr_consent"
-                )
-                if st.button("📝 Registruotis", use_container_width=True):
-                    if not gdpr_consent:
-                        st.warning("Privalote sutikti su privatumo politika")
-                    elif not email or not password:
-                        st.warning("Įveskite el. paštą ir slaptažodį")
-                    elif len(password) < 6:
-                        st.warning("Slaptažodis per trumpas (min 6 simboliai)")
-                    else:
-                        result = sign_up_with_email(email, password)
-                        if result['success']:
-                            st.success("Registracija sėkminga! Patikrinkite el. paštą ir patvirtinkite paskyrą.")
-                        else:
-                            st.error("Registracija nepavyko. Galbūt šis el. paštas jau užregistruotas?")
-
-            st.caption("💡 Prisijungę kortelės bus pasiekiamos iš bet kurio įrenginio")
-    
-    st.divider()
-
-    # API key: admin sees input, regular users use server key
-    if is_admin():
-        st.header("Nustatymai")
-        st.markdown("""**Kaip pradėti naudoti?**
-1. Eik į [aistudio.google.com](https://aistudio.google.com/apikey)
-2. Prisijunk su Google paskyra
-3. Paspausk 'Create API key'
-4. Nukopijuok ir įklijuok čia""")
-
-        api_key = st.text_input(
-            "API raktas",
-            value=os.getenv("GEMINI_API_KEY", ""),
-            type="password",
-            placeholder="Įklijuokite raktą čia..."
-        )
-    else:
-        api_key = os.getenv("GEMINI_API_KEY", "")
-
-    st.divider()
-
-    if is_admin():
-        st.subheader("Šiandienos progresas")
-        current_limit = get_limit('daily')
-        remaining = max(0, current_limit - st.session_state.flashcards_count)
-        progress = min(st.session_state.flashcards_count / current_limit, 1.0)
-        st.progress(progress)
-        st.caption(f"Sukurta {st.session_state.flashcards_count} iš {current_limit} kortelių")
-
-        if remaining == 0 and not st.session_state.is_premium:
-            st.warning("Dienos limitas pasiektas. Tapkite Premium nariu ir kurkite neribotai!")
-
-    # 🔥 Streak display
-    if st.session_state.user and SUPABASE_AVAILABLE:
-        streak_data = get_streak(st.session_state.user['id'])
-        streak = streak_data['streak']
-        longest = streak_data['longest']
-        total = streak_data['total']
-        studied_today = streak_data['studied_today']
-        
-        st.divider()
-        
-        # Fire emojis based on streak length
-        if streak >= 30:
-            fire = "🔥🔥🔥🔥🔥"
-            msg = "LEGENDINIS! Mėnuo iš eilės!"
-        elif streak >= 14:
-            fire = "🔥🔥🔥🔥"
-            msg = "NEĮTIKĖTINA! 2+ savaitės!"
-        elif streak >= 7:
-            fire = "🔥🔥🔥"
-            msg = "PUIKU! Visa savaitė!"
-        elif streak >= 3:
-            fire = "🔥🔥"
-            msg = "Šauniai sekasi!"
-        elif streak >= 1:
-            fire = "🔥"
-            msg = "Geras startas!"
-        else:
-            fire = "💤"
-            msg = "Mokykis šiandien!"
-        
-        st.markdown(f"### {fire} {streak} d.")
-        
-        if studied_today:
-            st.success(f"✅ Šiandien jau mokėtės!")
-        else:
-            st.warning("⏳ Šiandien dar nesimokėte")
-        
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            st.metric("Rekordas", f"{longest} d.")
-        with col_s2:
-            st.metric("Iš viso", f"{total} 🃏")
-        
-        st.caption(msg)
-
-    st.divider()
-    st.caption("Sukurta su ❤️ Lietuvos studentams")
-
-    with st.expander("Privatumo politika (BDAR)"):
-        st.markdown("""
-<a name="privatumo-politika"></a>
-**QUANTUM — Privatumo politika**
-*Atnaujinta: 2025-02-07*
-
-**1. Duomenų valdytojas**
-FlashCards AI, el. paštas: petrovic222@gmail.com
-
-**2. Kokie duomenys renkami**
-- **Paskyros duomenys:** el. pašto adresas, užšifruotas slaptažodis
-- **Mokymosi duomenys:** jūsų sukurtos kortelės (klausimai/atsakymai), mokymosi progresas
-- **Laikini duomenys:** įkelti tekstai, PDF, nuotraukos (apdorojami ir iškart ištrinami)
-
-**3. Duomenų tvarkymo tikslai ir pagrindas**
-- Paskyros sukūrimas ir autentifikacija — *sutikimas (BDAR 6 str. 1 d. a)*
-- Kortelių saugojimas ir sinchronizavimas — *sutarties vykdymas (BDAR 6 str. 1 d. b)*
-- AI turinio generavimas — *sutarties vykdymas (BDAR 6 str. 1 d. b)*
-
-**4. Trečiosios šalys (duomenų tvarkytojai)**
-| Paslauga | Paskirtis | Vieta |
-|---|---|---|
-| **Supabase** (supabase.com) | Duomenų saugojimas, autentifikacija | EU/US |
-| **Google Gemini API** | AI turinio generavimas | US |
-| **Streamlit Cloud** | Programos talpinimas | US |
-
-Įkelti tekstai, PDF ir nuotraukos siunčiami į Google Gemini API tik apdorojimui — jie **nesaugomi** mūsų serveriuose.
-
-**5. Duomenų saugojimo terminas**
-- Paskyros duomenys: kol paskyra aktyvi arba kol paprašysite ištrinti
-- Kortelės: kol paskyra aktyvi arba kol ištrinsite
-- Laikini duomenys (tekstai, PDF, nuotraukos): ištrinami iškart po apdorojimo
-
-**6. Jūsų teisės pagal BDAR**
-- **Teisė susipažinti** (15 str.) — galite peržiūrėti savo duomenis
-- **Teisė ištaisyti** (16 str.) — galite redaguoti korteles
-- **Teisė ištrinti** (17 str.) — galite ištrinti paskyrą ir visus duomenis
-- **Teisė į duomenų perkeliamumą** (20 str.) — galite eksportuoti duomenis JSON formatu
-- **Teisė atšaukti sutikimą** — bet kada galite ištrinti paskyrą
-
-Šias teises galite įgyvendinti per programos sąsają (Paskyra → Mano duomenys) arba rašydami el. paštu.
-
-**7. Slapukai**
-Ši programa nenaudoja slapukų (cookies). Sesijos duomenys saugomi tik serverio atmintyje ir ištrinami uždarius naršyklę.
-
-**8. Skundai**
-Turite teisę pateikti skundą Valstybinei duomenų apsaugos inspekcijai (vdai.lrv.lt).
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("Turite klausimų ar idėjų? [Parašykite mums](mailto:petrovic222@gmail.com)")
 
 # Main UI Logic
 if not st.session_state.user:
@@ -1249,14 +851,18 @@ if not st.session_state.user:
     with nav_col1:
         st.image("assets/logo.png", width=150)
     with nav_col2:
-        # Pull right aligned "links" using columns
-        sub_col1, sub_col2, sub_col3 = st.columns([2, 1, 1])
+        sub_col1, sub_col2, sub_col3, sub_col4 = st.columns([1, 1, 1, 1])
         with sub_col2:
+            dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle")
+            if dark_on != st.session_state.dark_mode:
+                st.session_state.dark_mode = dark_on
+                st.rerun()
+        with sub_col3:
             if st.button("Prisijungti", key="nav_login", use_container_width=True):
                 st.session_state.auth_view = True
                 st.session_state.auth_mode = "Prisijungti"
                 st.rerun()
-        with sub_col3:
+        with sub_col4:
             if st.button("Registruotis", key="nav_signup", use_container_width=True):
                 st.session_state.auth_view = True
                 st.session_state.auth_mode = "Registruotis"
@@ -1372,6 +978,28 @@ if not st.session_state.user:
                     st.rerun()
 
     st.stop()
+
+# --- TOP NAVIGATION (logged in) ---
+nav_l, nav_r = st.columns([1, 1])
+with nav_l:
+    st.image("assets/logo.png", width=150)
+with nav_r:
+    nc1, nc2, nc3, nc4 = st.columns([1, 1, 1, 1])
+    with nc2:
+        dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle_main")
+        if dark_on != st.session_state.dark_mode:
+            st.session_state.dark_mode = dark_on
+            st.rerun()
+    with nc3:
+        st.markdown(f"**{st.session_state.user['email']}**")
+    with nc4:
+        if st.button("Atsijungti", key="nav_logout", use_container_width=True):
+            sign_out()
+            st.session_state.user = None
+            st.session_state.flashcards = []
+            st.session_state.study_cards = {}
+            streamlit_js_eval(js_expressions="localStorage.removeItem('quantum_user')")
+            st.rerun()
 
 # Main tabs
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
