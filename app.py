@@ -325,6 +325,27 @@ DARK_MODE_CSS = """
         border-radius: 10px !important;
     }
 
+    /* Sliders */
+    .stSlider [data-baseweb="slider"] {
+        background-color: transparent !important;
+    }
+    .stSlider [data-testid="stThumb"] {
+        background-color: #00BFFF !important;
+        border: 2px solid #fff !important;
+    }
+    .stSlider [data-testid="stTickBar"] {
+        color: #8b949e !important;
+    }
+
+    /* Selectbox deeper styling */
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #f0f6fc !important;
+    }
+    .stSelectbox [data-testid="stMarkdownContainer"] p {
+        color: #f0f6fc !important;
+    }
+
     /* === CUSTOM LANDING CLASSES === */
     .hero-title {
         font-size: 3.5rem !important;
