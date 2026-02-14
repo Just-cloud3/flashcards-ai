@@ -233,31 +233,72 @@ button[kind="primary"]:hover {
 </style>
 """, unsafe_allow_html=True)
 
-# Dark Mode CSS (will be applied conditionally)
-DARK_MODE_CSS = """
+# Galaxy Theme CSS (Standard tamsusis režimas buvo pakeistas į šį premium stilių)
+GALAXY_THEME_CSS = """
 <style>
-    .stApp { background-color: #0e1117 !important; }
-    [data-testid="stSidebar"] { background-color: #161b22 !important; }
-    .stMarkdown, .stText, p, span, label { color: #c9d1d9 !important; }
-    h1, h2, h3, h4, h5, h6 { color: #f0f6fc !important; }
-    .stTextInput input, .stTextArea textarea {
-        background-color: #21262d !important; color: #c9d1d9 !important; border-color: #30363d !important;
+    /* 1. PAGRINDINIS FONAS (Visata) */
+    [data-testid="stAppViewContainer"] {
+        background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%) !important;
+        background-attachment: fixed !important;
+        color: #E0E0E0 !important;
     }
-    .stSelectbox > div > div { background-color: #21262d !important; color: #c9d1d9 !important; }
-    .stButton > button { background-color: #238636 !important; color: white !important; border: none !important; }
-    .stButton > button:hover { background-color: #2ea043 !important; }
-    .stButton > button[kind="primary"] { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
-    .streamlit-expanderHeader { background-color: #21262d !important; color: #c9d1d9 !important; }
-    [data-testid="stMetricValue"] { color: #58a6ff !important; }
-    .stAlert { background-color: #21262d !important; }
-    .flip-card-front, .study-card-q { background: linear-gradient(135deg, #1a1f35 0%, #2d1f3d 100%) !important; }
-    .flip-card-back, .study-card-a { background: linear-gradient(135deg, #0d2818 0%, #1a3d2e 100%) !important; }
-    .stTabs [data-baseweb="tab-list"] { background-color: #161b22 !important; }
+
+    /* 2. ŠONINIS MENIU (Sidebar) - Tamsioji materija */
+    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+        background-color: #0d1117 !important;
+        border-right: 1px solid #1f294f !important;
+    }
+
+    /* 3. TEKSTO IR ANTRAŠČIŲ PRITAIKYMAS TAMSAI */
+    h1, h2, h3, h4, h5, h6, p, span, div, label {
+        color: #E0E0E0 !important;
+    }
+    
+    /* Akronimo (Q U A N T U M) raidžių švytėjimas */
+    .highlight {
+        color: #00BFFF !important; 
+        text-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+        font-weight: bold;
+    }
+
+    /* 4. MYGTUKAI - Kaip varikliai kosmose */
+    div.stButton > button {
+        background: linear-gradient(135deg, #00BFFF 0%, #4B0082 100%) !important; 
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 10px 24px !important;
+        font-weight: 600 !important;
+        letter-spacing: 1px !important;
+        transition: all 0.3s ease-in-out !important;
+        box-shadow: 0 0 15px rgba(0, 191, 255, 0.3) !important;
+    }
+
+    div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 0 25px rgba(0, 191, 255, 0.7), 0 0 50px rgba(0, 191, 255, 0.4) !important;
+    }
+
+    /* 5. ĮVESTIES LAUKAI (Input fields) */
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+        background-color: #161b22 !important;
+        color: #E0E0E0 !important;
+        border: 1px solid #30363d !important;
+    }
+    .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus {
+        border-color: #00BFFF !important;
+        box-shadow: 0 0 10px rgba(0, 191, 255, 0.3) !important;
+    }
+    
+    /* Tabs & Expander pritaikymas galaktikai */
+    .stTabs [data-baseweb="tab-list"] { background-color: transparent !important; }
     .stTabs [data-baseweb="tab"] { color: #8b949e !important; }
-    .stTabs [aria-selected="true"] { color: #f0f6fc !important; }
-    .stSlider > div > div { background-color: #30363d !important; }
-    [data-testid="stFileUploader"] { background-color: #21262d !important; }
-    hr { border-color: #30363d !important; }
+    .stTabs [aria-selected="true"] { color: #00BFFF !important; border-bottom-color: #00BFFF !important; }
+    div[data-testid="stExpander"] { background-color: rgba(13, 17, 23, 0.8) !important; border-color: #1f294f !important; }
+
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """
 
@@ -343,9 +384,9 @@ if 'exam_total' not in st.session_state:
 if 'exam_time_limit' not in st.session_state:
     st.session_state.exam_time_limit = None
 
-# Apply dark mode CSS
+# Apply Galaxy Theme CSS
 if st.session_state.dark_mode:
-    st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
+    st.markdown(GALAXY_THEME_CSS, unsafe_allow_html=True)
 
 # Handle Stripe Redirect (after successful payment)
 if STRIPE_AVAILABLE and 'session_id' in st.query_params:
@@ -741,7 +782,9 @@ if st.session_state.generation_success > 0:
 with st.sidebar:
     # Logo & Brand
     st.image("assets/logo.png", use_container_width=True)
-    st.caption("<p style='text-align: center;'>Ateities mokymosi platforma</p>", unsafe_allow_html=True)
+    st.caption("""<p style='text-align: center; font-family: monospace; letter-spacing: 1px;'>
+        <span class="highlight">Q</span>uestion · <span class="highlight">U</span>nderstand · <span class="highlight">A</span>I · <span class="highlight">N</span>eural · <span class="highlight">T</span>hink · <span class="highlight">U</span>nified · <span class="highlight">M</span>emory
+    </p>""", unsafe_allow_html=True)
 
     # Dark/Light mode toggle
     dark_on = st.toggle("🌙 Tamsusis režimas", value=st.session_state.dark_mode, key="dark_toggle")
@@ -1177,8 +1220,8 @@ if not st.session_state.user:
     
     st.markdown("""
     <div style="text-align: center; padding: 0px 20px 40px 20px;">
-        <p style="font-size: 1.5rem; color: #8b949e; max-width: 800px; margin: 0 auto;">
-            Ateities intelektas tavo kortelėse. Kurk, mokykis ir įsisavink žinias rekordiniu greičiu.
+        <p style="font-size: 1.2rem; color: #8b949e; max-width: 900px; margin: 0 auto; font-family: monospace; letter-spacing: 2px; text-transform: uppercase;">
+            <span class="highlight">Q</span>uestion · <span class="highlight">U</span>nderstand · <span class="highlight">A</span>I · <span class="highlight">N</span>eural · <span class="highlight">T</span>hink · <span class="highlight">U</span>nified · <span class="highlight">M</span>emory
         </p>
     </div>
     """, unsafe_allow_html=True)
