@@ -474,37 +474,40 @@ if 'auth_view' not in st.session_state:
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = "Prisijungti"
 
-# === OAuth callback: detect tokens in URL hash after Google login ===
-if st.session_state.user is None and SUPABASE_AVAILABLE:
-    if 'oauth_checked' not in st.session_state:
-        st.session_state.oauth_checked = False
-    hash_value = streamlit_js_eval(js_expressions="window.location.hash")
-    if hash_value and "access_token=" in str(hash_value):
+# === OAuth callback: JS converts hash tokens to query params, then Python reads them ===
+if st.session_state.user is None:
+    # Inject JS that runs immediately: if URL has #access_token, convert to ?query params and reload
+    st.markdown("""
+    <script>
+        if (window.location.hash && window.location.hash.includes('access_token=')) {
+            const hash = window.location.hash.substring(1);
+            window.location.replace(window.location.pathname + '?' + hash);
+        }
+    </script>
+    """, unsafe_allow_html=True)
+
+    # Read tokens from query params (after JS redirect)
+    if "access_token" in st.query_params and "refresh_token" in st.query_params and SUPABASE_AVAILABLE:
         try:
-            import urllib.parse
-            params = urllib.parse.parse_qs(str(hash_value).lstrip("#"))
-            access_token = params.get("access_token", [None])[0]
-            refresh_token = params.get("refresh_token", [None])[0]
-            if access_token and refresh_token:
-                result = set_session_from_tokens(access_token, refresh_token)
-                if result.get("success") and result.get("user"):
-                    user = result["user"]
-                    user_email = user.email if hasattr(user, 'email') else user.get('email', '')
-                    user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id', ''))
-                    st.session_state.user = {'id': user_id, 'email': user_email}
-                    if SUPABASE_AVAILABLE:
-                        profile = get_user_profile(user_id)
-                        st.session_state.is_premium = profile.get('is_premium', False)
-                        st.session_state.subscription_id = profile.get('subscription_id')
-                        st.session_state.flashcards_count = get_daily_usage(user_id)
-                    sync_flashcards_from_supabase(user_id)
-                    user_json = json.dumps(st.session_state.user)
-                    streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
-                    # Clear URL hash
-                    streamlit_js_eval(js_expressions="history.replaceState(null, '', window.location.pathname + window.location.search)")
-                    st.rerun()
+            access_token = st.query_params["access_token"]
+            refresh_token = st.query_params["refresh_token"]
+            result = set_session_from_tokens(access_token, refresh_token)
+            if result.get("success") and result.get("user"):
+                user = result["user"]
+                user_email = user.email if hasattr(user, 'email') else user.get('email', '')
+                user_id = str(user.id) if hasattr(user, 'id') else str(user.get('id', ''))
+                st.session_state.user = {'id': user_id, 'email': user_email}
+                profile = get_user_profile(user_id)
+                st.session_state.is_premium = profile.get('is_premium', False)
+                st.session_state.subscription_id = profile.get('subscription_id')
+                st.session_state.flashcards_count = get_daily_usage(user_id)
+                sync_flashcards_from_supabase(user_id)
+                user_json = json.dumps(st.session_state.user)
+                streamlit_js_eval(js_expressions=f"localStorage.setItem('quantum_user', '{user_json}')")
+                st.query_params.clear()
+                st.rerun()
         except Exception:
-            pass  # Token parsing failed, ignore
+            st.query_params.clear()
 
 # Auto-logout after 30 minutes of inactivity
 SESSION_TIMEOUT = 30 * 60  # 30 minutes in seconds
