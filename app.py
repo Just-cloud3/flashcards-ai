@@ -474,17 +474,18 @@ if 'auth_view' not in st.session_state:
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = "Prisijungti"
 
-# === OAuth callback: JS converts hash tokens to query params, then Python reads them ===
+# === OAuth callback: convert hash tokens to query params via JS component ===
 if st.session_state.user is None:
-    # Inject JS that runs immediately: if URL has #access_token, convert to ?query params and reload
-    st.markdown("""
+    import streamlit.components.v1 as components
+    components.html("""
     <script>
-        if (window.location.hash && window.location.hash.includes('access_token=')) {
-            const hash = window.location.hash.substring(1);
-            window.location.replace(window.location.pathname + '?' + hash);
+        const hash = window.parent.location.hash;
+        if (hash && hash.includes('access_token=')) {
+            const params = hash.substring(1);
+            window.parent.location.replace(window.parent.location.pathname + '?' + params);
         }
     </script>
-    """, unsafe_allow_html=True)
+    """, height=0)
 
     # Read tokens from query params (after JS redirect)
     if "access_token" in st.query_params and "refresh_token" in st.query_params and SUPABASE_AVAILABLE:
