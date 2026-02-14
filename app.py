@@ -274,33 +274,74 @@ DARK_MODE_CSS = """
         box-shadow: 0 0 25px rgba(0, 191, 255, 0.6) !important;
     }
 
-    /* === ĮVESTIES LAUKAI === */
+    /* === ĮVESTIES LAUKAI (Selectbox, Radio, Checkbox) === */
+    .stSelectbox > div > div,
+    .stMultiSelect > div > div,
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea {
-        background-color: rgba(10, 12, 20, 0.85) !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
         color: #f0f6fc !important;
-        border: 1px solid rgba(0, 191, 255, 0.15) !important;
+        border: 1px solid rgba(0, 191, 255, 0.2) !important;
+        border-radius: 12px !important;
+    }
+    
+    /* Fix white pop-out for dropdowns */
+    [data-baseweb="popover"], [data-baseweb="menu"], [data-baseweb="list-box"] {
+        background-color: #0d1117 !important;
+        border: 1px solid rgba(0, 191, 255, 0.3) !important;
+    }
+    
+    [data-baseweb="option"] {
+        background-color: transparent !important;
+        color: #f0f6fc !important;
+    }
+    
+    [data-baseweb="option"]:hover {
+        background-color: rgba(0, 191, 255, 0.1) !important;
+    }
+
+    /* Radio buttons & Checkboxes */
+    [data-testid="stMarkdownContainer"] p { font-weight: 500; }
+    .stCheckbox label, .stRadio label {
+        color: #f0f6fc !important;
+    }
+
+    /* Tab Switcher Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        background: rgba(255, 255, 255, 0.03) !important;
+        padding: 5px !important;
+        border-radius: 15px !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        color: #8b949e !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        color: #00BFFF !important;
+        background: rgba(0, 191, 255, 0.1) !important;
         border-radius: 10px !important;
     }
 
     /* === CUSTOM LANDING CLASSES === */
     .hero-title {
-        font-size: 4rem !important;
+        font-size: 3.5rem !important;
         background: linear-gradient(to right, #fff, #00BFFF);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
-        padding: 60px 0 20px 0;
+        padding: 40px 0 20px 0;
         line-height: 1.1 !important;
         font-weight: 800;
     }
     
-    .nav-bar {
+    .top-nav {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        width: 100%;
         padding: 10px 0;
-        margin-bottom: 20px;
     }
 
     .feature-card {
@@ -832,24 +873,12 @@ if st.session_state.generation_success > 0:
     st.success(f"Paruošta {st.session_state.generation_success} kortelių! Galite pradėti mokytis.")
     st.session_state.generation_success = 0
 
-# API key: admin sees input, regular users use server key
-if is_admin():
-    api_key = st.text_input(
-        "API raktas",
-        value=os.getenv("GEMINI_API_KEY", ""),
-        type="password",
-        placeholder="Įklijuokite raktą čia..."
-    )
-else:
-    api_key = os.getenv("GEMINI_API_KEY", "")
-
-
 # Main UI Logic
 if not st.session_state.user:
     # --- TOP NAVIGATION ---
     nav_col1, nav_col2 = st.columns([1, 1])
     with nav_col1:
-        st.image("assets/logo.png", width=150)
+        st.image("assets/logo.png", width=160)
     with nav_col2:
         sub_col1, sub_col2, sub_col3, sub_col4 = st.columns([1, 1, 1, 1])
         with sub_col2:
@@ -982,16 +1011,16 @@ if not st.session_state.user:
 # --- TOP NAVIGATION (logged in) ---
 nav_l, nav_r = st.columns([1, 1])
 with nav_l:
-    st.image("assets/logo.png", width=150)
+    st.image("assets/logo.png", width=160)
 with nav_r:
-    nc1, nc2, nc3, nc4 = st.columns([1, 1, 1, 1])
+    nc1, nc2, nc3, nc4 = st.columns([1, 1, 2, 1])
     with nc2:
         dark_on = st.toggle("🌙", value=st.session_state.dark_mode, key="dark_toggle_main")
         if dark_on != st.session_state.dark_mode:
             st.session_state.dark_mode = dark_on
             st.rerun()
     with nc3:
-        st.markdown(f"**{st.session_state.user['email']}**")
+        st.markdown(f"<div style='padding-top: 5px;'><b>{st.session_state.user['email']}</b></div>", unsafe_allow_html=True)
     with nc4:
         if st.button("Atsijungti", key="nav_logout", use_container_width=True):
             sign_out()
@@ -1002,14 +1031,26 @@ with nav_r:
             st.rerun()
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📝 Naujos kortelės",
-    "🧠 Mokymasis",
-    "🎴 Peržiūra",
-    "💾 Atsisiuntimas",
-    "💬 Paklausti AI",
-    "👥 Bendruomenė"
-])
+tab_titles = ["📝 Naujos kortelės", "🧠 Mokymasis", "🎴 Peržiūra", "💾 Atsisiuntimas", "💬 Paklausti AI", "👥 Bendruomenė"]
+if is_admin():
+    tab_titles.append("⚙️ Nustatymai")
+
+tabs = st.tabs(tab_titles)
+tab1, tab2, tab3, tab4, tab5, tab6 = tabs[:6]
+
+# API key handling (Server key as default)
+api_key = os.getenv("GEMINI_API_KEY", "")
+
+if is_admin():
+    tab7 = tabs[6]
+    with tab7:
+        st.header("⚙️ Administratoriaus nustatymai")
+        api_key = st.text_input(
+            "Gemini API raktas (Admin)",
+            value=os.getenv("GEMINI_API_KEY", ""),
+            type="password"
+        )
+        st.info("Šis raktas naudojamas tik sesijos metu, jei norite perrašyti serverio numatytąjį raktą.")
 
 can_generate = st.session_state.flashcards_count < get_limit('daily')
 
