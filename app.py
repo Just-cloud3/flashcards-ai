@@ -390,9 +390,12 @@ DARK_MODE_CSS = """
     }
 
     /* === Streamlit cleanup === */
-    #MainMenu { display: none !important; }
-    footer { display: none !important; }
-    header { display: none !important; }
+    #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stDecoration"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        padding: 0 !important;
+    }
     
     /* Agresyvus šoninio meniu paslėpimas */
     [data-testid="stSidebar"], 
@@ -466,6 +469,8 @@ if 'last_activity' not in st.session_state:
     st.session_state.last_activity = time.time()
 if 'auth_view' not in st.session_state:
     st.session_state.auth_view = False # True means show login/signup on landing page
+if 'auth_mode' not in st.session_state:
+    st.session_state.auth_mode = "Prisijungti"
 
 # === OAuth callback: detect tokens in URL hash after Google login ===
 if st.session_state.user is None and SUPABASE_AVAILABLE:
